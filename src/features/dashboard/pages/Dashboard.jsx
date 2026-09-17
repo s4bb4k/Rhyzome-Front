@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -12,7 +12,10 @@ import {
   Save,
   FileJson,
   Image,
-  Sparkles
+  Sparkles,
+  BookOpen,
+  X,
+  BadgeCheck
 } from "lucide-react";
 
 import { supabase } from "../../../lib/supabase";
@@ -20,14 +23,18 @@ import { supabase } from "../../../lib/supabase";
 function Dashboard() {
   const navigate = useNavigate();
 
-  const [mapType, setMapType] = useState("Bosque");
+  const [mapType, setMapType] = useState(
+    () => localStorage.getItem("rhizome.mapType") || "Mazmorra"
+  );
 
   const [width, setWidth] = useState(50);
   const [height, setHeight] = useState(35);
   const [seed, setSeed] = useState(539989);
 
-  const [perlin, setPerlin] = useState(true);
-  const [cellular, setCellular] = useState(false);
+  const [algorithm, setAlgorithm] = useState(
+    () => localStorage.getItem("rhizome.algorithm") || "cellular"
+  );
+  const [showManual, setShowManual] = useState(false);
 
   const [complexity, setComplexity] = useState("Medio");
   const [tileSize, setTileSize] = useState(16);
@@ -37,6 +44,27 @@ function Dashboard() {
   const [accessibility, setAccessibility] = useState(80);
 
   const [generating, setGenerating] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem("rhizome.mapType", mapType);
+    localStorage.setItem("rhizome.algorithm", algorithm);
+  }, [mapType, algorithm]);
+
+  useEffect(() => {
+    if (!showManual) return undefined;
+
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setShowManual(false);
+    };
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [showManual]);
+
+  const selectMapType = (selectedType) => {
+    setMapType(selectedType);
+    setAlgorithm(selectedType === "Mazmorra" ? "cellular" : "perlin");
+  };
 
   const generateMap = async () => {
     setGenerating(true);
@@ -49,8 +77,7 @@ function Dashboard() {
       width,
       height,
       seed,
-      perlin,
-      cellular,
+      algorithm,
       complexity,
       tileSize,
       quality,
@@ -87,6 +114,15 @@ function Dashboard() {
         </div>
 
         <div className="header-actions">
+
+          <button
+            type="button"
+            className="manual-button"
+            onClick={() => setShowManual(true)}
+          >
+            <BookOpen size={14} />
+            Manual de usuario
+          </button>
 
           <button
             type="button"
@@ -129,7 +165,7 @@ function Dashboard() {
 
               <button
                 className={mapType === "Bosque" ? "map-type active" : "map-type"}
-                onClick={() => setMapType("Bosque")}
+                onClick={() => selectMapType("Bosque")}
               >
                 <Trees size={14} />
                 Bosque
@@ -137,23 +173,23 @@ function Dashboard() {
 
               <button
                 className={mapType === "Desierto" ? "map-type active" : "map-type"}
-                onClick={() => setMapType("Desierto")}
+                onClick={() => selectMapType("Desierto")}
               >
                 <Sun size={14} />
                 Desierto
               </button>
 
               <button
-                className={mapType === "Urbano" ? "map-type active" : "map-type"}
-                onClick={() => setMapType("Urbano")}
+                className={mapType === "Ciudad" ? "map-type active" : "map-type"}
+                onClick={() => selectMapType("Ciudad")}
               >
                 <Building2 size={14} />
-                Urbano
+                Ciudad
               </button>
 
               <button
                 className={mapType === "Mazmorra" ? "map-type active" : "map-type"}
-                onClick={() => setMapType("Mazmorra")}
+                onClick={() => selectMapType("Mazmorra")}
               >
                 <Skull size={14} />
                 Mazmorra
@@ -218,18 +254,23 @@ function Dashboard() {
               ALGORITMOS
             </div>
 
+            <div className="recommendation-message">
+              <BadgeCheck size={14} />
+              Recomendado para {mapType}: {mapType === "Mazmorra" ? "Autómatas Celulares" : "Ruido Perlin"}
+            </div>
+
             <Algorithm
               title="Ruido Perlin/Simplex"
               description="Terreno orgánico y natural"
-              enabled={perlin}
-              setEnabled={setPerlin}
+              enabled={algorithm === "perlin"}
+              onSelect={() => setAlgorithm("perlin")}
             />
 
             <Algorithm
               title="Autómatas Celulares"
               description="Genera cuevas y grutas"
-              enabled={cellular}
-              setEnabled={setCellular}
+              enabled={algorithm === "cellular"}
+              onSelect={() => setAlgorithm("cellular")}
             />
 
           </section>
@@ -398,6 +439,61 @@ function Dashboard() {
 
       </footer>
 
+      {showManual && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setShowManual(false);
+          }}
+        >
+          <section
+            className="manual-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="manual-title"
+          >
+            <div className="manual-modal-header">
+              <div>
+                <span className="manual-eyebrow">AYUDA</span>
+                <h2 id="manual-title">Manual de usuario</h2>
+              </div>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setShowManual(false)}
+                aria-label="Cerrar manual"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="manual-content">
+              <ol>
+                <li><strong>Selecciona el mapa.</strong> El sistema marcará automáticamente el algoritmo recomendado.</li>
+                <li><strong>Ajusta las dimensiones y la semilla.</strong> La misma semilla permite reproducir un mapa.</li>
+                <li><strong>Configura la complejidad y evaluación.</strong> Revisa los valores antes de generar.</li>
+                <li><strong>Genera el mapa.</strong> Después podrás guardarlo o exportarlo como JSON o PNG.</li>
+              </ol>
+
+              <div className="manual-recommendations">
+                <h3>Algoritmos recomendados</h3>
+                <p><strong>Bosque, Desierto y Ciudad:</strong> Ruido Perlin/Simplex.</p>
+                <p><strong>Mazmorra:</strong> Autómatas Celulares.</p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="manual-understood"
+              onClick={() => setShowManual(false)}
+            >
+              Entendido
+            </button>
+          </section>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -445,7 +541,7 @@ function Algorithm({
   title,
   description,
   enabled,
-  setEnabled,
+  onSelect,
 }) {
   return (
     <div className="algorithm">
@@ -464,7 +560,10 @@ function Algorithm({
 
       <button
         className={enabled ? "switch active" : "switch"}
-        onClick={() => setEnabled(!enabled)}
+        onClick={onSelect}
+        role="radio"
+        aria-checked={enabled}
+        aria-label={`Seleccionar ${title}`}
       >
         <span />
       </button>

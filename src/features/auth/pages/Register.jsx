@@ -14,9 +14,11 @@ import {
 
 import { supabase } from "../../../lib/supabase";
 
+
 function Register() {
   const navigate = useNavigate();
 
+   // esto es un comentario
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
