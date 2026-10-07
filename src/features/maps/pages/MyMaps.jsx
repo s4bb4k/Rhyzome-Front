@@ -1,792 +1,769 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import {useEffect, useMemo, useState} from "react";
+import {useNavigate} from "react-router-dom";
 
 import {
-  Search,
-  SlidersHorizontal,
-  ChevronUp,
-  ChevronDown,
-  Plus,
-  Trees,
-  Sun,
-  Building2,
-  Skull,
-  MoreVertical,
-  Grid2X2,
-  List,
-  ChevronLeft,
-  ChevronRight,
-  Map,
-  LogOut,
-  X,
+    Search,
+    SlidersHorizontal,
+    ChevronUp,
+    ChevronDown,
+    Plus,
+    Trees,
+    Sun,
+    Building2,
+    Skull,
+    MoreVertical,
+    Grid2X2,
+    List,
+    ChevronLeft,
+    ChevronRight,
+    Map,
+    LogOut,
+    X,
+    Trash2,
+    RefreshCw,
 } from "lucide-react";
 
-import { supabase } from "../../../lib/supabase";
-
-
-const initialMaps = [
-  {
-    id: 1,
-    name: "Bosque Encantado",
-    biome: "Bosque",
-    width: 50,
-    height: 35,
-    tileSize: 16,
-    seed: 42869,
-    created: "Hoy, 10:24 AM",
-    image:
-      "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=600&q=80",
-  },
-  {
-    id: 2,
-    name: "Bosque Profundo",
-    biome: "Bosque",
-    width: 80,
-    height: 60,
-    tileSize: 12,
-    seed: 91327,
-    created: "Ayer, 6:15 PM",
-    image:
-      "https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&w=600&q=80",
-  },
-  {
-    id: 3,
-    name: "Sendero Verde",
-    biome: "Bosque",
-    width: 80,
-    height: 60,
-    tileSize: 12,
-    seed: 33421,
-    created: "Hace 2 días",
-    image:
-      "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=600&q=80",
-  },
-  {
-    id: 4,
-    name: "Claro del Bosque",
-    biome: "Bosque",
-    width: 60,
-    height: 45,
-    tileSize: 16,
-    seed: 77812,
-    created: "Hace 3 días",
-    image:
-      "https://images.unsplash.com/photo-1501854140801-50d01698950b?auto=format&fit=crop&w=600&q=80",
-  },
-  {
-    id: 5,
-    name: "Bosque Nebuloso",
-    biome: "Bosque",
-    width: 70,
-    height: 50,
-    tileSize: 12,
-    seed: 56578,
-    created: "Hace 4 días",
-    image:
-      "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=600&q=80",
-  },
-  {
-    id: 6,
-    name: "Arboleda Silenciosa",
-    biome: "Bosque",
-    width: 90,
-    height: 50,
-    tileSize: 12,
-    seed: 22109,
-    created: "Hace 5 días",
-    image:
-      "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=600&q=80",
-  },
-];
-
+import {supabase} from "../../../lib/supabase";
+import {
+    getMyMaps,
+    deleteMap,
+} from "../../../services/mapsStorage";
 
 const biomeIcons = {
-  Todos: Map,
-  Bosque: Trees,
-  Desierto: Sun,
-  Urbano: Building2,
-  Mazmorra: Skull,
+    Todos: Map,
+    Bosque: Trees,
+    Desierto: Sun,
+    Ciudad: Building2,
+    Mazmorra: Skull,
 };
 
+const PAGE_SIZE = 6;
 
 function MyMaps() {
-
-  const navigate = useNavigate();
-
-  const [maps] = useState(initialMaps);
-
-  const [search, setSearch] = useState("");
-
-  const [biome, setBiome] = useState("Todos");
-
-  const [dateFilter, setDateFilter] = useState("Cualquier fecha");
-
-  const [width, setWidth] = useState(10);
-
-  const [seed, setSeed] = useState("");
-
-  const [showFilters, setShowFilters] = useState(true);
-
-  const [view, setView] = useState("grid");
-
-  const [sort, setSort] = useState("Más recientes");
-
-
-  /* ================================
-     FILTRADO
-  ================================= */
-
-  const filteredMaps = useMemo(() => {
-
-    return maps.filter((map) => {
-
-      const searchMatch =
-        map.name
-          .toLowerCase()
-          .includes(search.toLowerCase());
-
-      const biomeMatch =
-        biome === "Todos" ||
-        map.biome === biome;
-
-      const widthMatch =
-        map.width >= width;
-
-      const seedMatch =
-        !seed ||
-        String(map.seed).includes(seed);
-
-      return (
-        searchMatch &&
-        biomeMatch &&
-        widthMatch &&
-        seedMatch
-      );
-
-    });
-
-  }, [maps, search, biome, width, seed]);
-
-
-  /* ================================
-     LOGOUT
-  ================================= */
-
-  const logout = async () => {
-
-    await supabase.auth.signOut();
-
-    navigate("/");
-
-  };
-
-
-  /* ================================
-     CREAR MAPA
-  ================================= */
-
-  const createMap = () => {
-
-    navigate("/dashboard");
-
-  };
-
-
-  return (
-
-    <div className="maps-page">
-
-
-      {/* =========================
-          HEADER
-      ========================== */}
-
-      <header className="maps-header">
-
-        <div className="maps-brand">
-
-          <div className="maps-brand-icon">
-            <Map size={17} />
-          </div>
-
-          <strong>
-            Rhizome
-          </strong>
-
-        </div>
-
-
-        <div className="maps-header-actions">
-
-          <button
-            className="new-map-button"
-            onClick={createMap}
-          >
-            <Plus size={16} />
-
-            Nuevo mapa
-          </button>
-
-          <button
-            className="logout-button"
-            onClick={logout}
-            title="Cerrar sesión"
-          >
-            <LogOut size={15} />
-          </button>
-
-        </div>
-
-      </header>
-
-
-      {/* =========================
-          CONTENT
-      ========================== */}
-
-      <main className="maps-content">
-
-
-        {/* TITLE */}
-
-        <div className="maps-title">
-
-          <h1>
-            Mis Mapas
-          </h1>
-
-          <p>
-            {filteredMaps.length} mapas encontrados
-          </p>
-
-        </div>
-
-
-        {/* =========================
-            SEARCH + FILTERS
-        ========================== */}
-
-        <section className="maps-filter-box">
-
-
-          {/* SEARCH */}
-
-          <div className="maps-search-row">
-
-            <div className="maps-search">
-
-              <Search size={17} />
-
-              <input
-                type="text"
-                placeholder="Buscar por nombre de mapa..."
-                value={search}
-                onChange={(e) =>
-                  setSearch(e.target.value)
+    const navigate = useNavigate();
+
+    const [maps, setMaps] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState("");
+
+    const [search, setSearch] = useState("");
+    const [biome, setBiome] = useState("Todos");
+    const [dateFilter, setDateFilter] = useState("Cualquier fecha");
+    const [width, setWidth] = useState(10);
+    const [seed, setSeed] = useState("");
+    const [showFilters, setShowFilters] = useState(true);
+    const [view, setView] = useState("grid");
+    const [sort, setSort] = useState("Más recientes");
+    const [page, setPage] = useState(1);
+    const [openMenuId, setOpenMenuId] = useState(null);
+    const [deletingId, setDeletingId] = useState(null);
+
+    useEffect(() => {
+        loadMaps();
+    }, []);
+
+    async function loadMaps() {
+        try {
+            setLoading(true);
+            setLoadError("");
+            const data = await getMyMaps();
+            setMaps(data);
+        } catch (error) {
+            console.error("Error cargando mapas:", error);
+            setLoadError(error?.message || "No fue posible cargar los mapas.");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    const filteredMaps = useMemo(() => {
+        const now = new Date();
+
+        const result = maps.filter((map) => {
+            const name = String(map.name ?? "");
+            const type = normalizeMapType(map.map_type);
+
+            const searchMatch = name.toLowerCase().includes(search.toLowerCase());
+
+            const biomeMatch =
+                biome === "Todos" ||
+                type.toLowerCase() === biome.toLowerCase();
+
+            const widthMatch = Number(map.width ?? 0) >= width;
+
+            const seedMatch =
+                !seed ||
+                String(map.seed ?? "").includes(seed);
+
+            const createdAt = map.created_at ? new Date(map.created_at) : null;
+            let dateMatch = true;
+
+            if (dateFilter !== "Cualquier fecha" && createdAt && !Number.isNaN(createdAt.getTime())) {
+                const diffMs = now.getTime() - createdAt.getTime();
+                const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+                if (dateFilter === "Hoy") {
+                    dateMatch =
+                        createdAt.getFullYear() === now.getFullYear() &&
+                        createdAt.getMonth() === now.getMonth() &&
+                        createdAt.getDate() === now.getDate();
+                } else if (dateFilter === "Últimos 7 días") {
+                    dateMatch = diffDays >= 0 && diffDays <= 7;
+                } else if (dateFilter === "Últimos 30 días") {
+                    dateMatch = diffDays >= 0 && diffDays <= 30;
                 }
-              />
+            }
 
-              {search && (
+            return searchMatch && biomeMatch && widthMatch && seedMatch && dateMatch;
+        });
 
-                <button
-                  className="clear-search"
-                  onClick={() => setSearch("")}
-                >
-                  <X size={15} />
-                </button>
+        return [...result].sort((a, b) => {
+            if (sort === "Más antiguos") {
+                return new Date(a.created_at ?? 0) - new Date(b.created_at ?? 0);
+            }
 
-              )}
+            if (sort === "Nombre A-Z") {
+                return String(a.name ?? "").localeCompare(String(b.name ?? ""));
+            }
 
-            </div>
+            if (sort === "Nombre Z-A") {
+                return String(b.name ?? "").localeCompare(String(a.name ?? ""));
+            }
 
+            return new Date(b.created_at ?? 0) - new Date(a.created_at ?? 0);
+        });
+    }, [maps, search, biome, width, seed, dateFilter, sort]);
 
-            <button
-              className="filters-button"
-              onClick={() =>
-                setShowFilters(!showFilters)
-              }
-            >
+    useEffect(() => {
+        setPage(1);
+    }, [search, biome, width, seed, dateFilter, sort]);
 
-              <SlidersHorizontal size={15} />
+    const totalPages = Math.max(1, Math.ceil(filteredMaps.length / PAGE_SIZE));
+    const safePage = Math.min(page, totalPages);
+    const startIndex = (safePage - 1) * PAGE_SIZE;
+    const visibleMaps = filteredMaps.slice(startIndex, startIndex + PAGE_SIZE);
 
-              Filtros
+    const logout = async () => {
+        await supabase.auth.signOut();
+        navigate("/");
+    };
 
-              {showFilters ? (
-                <ChevronUp size={14} />
-              ) : (
-                <ChevronDown size={14} />
-              )}
+    const createMap = () => {
+        navigate("/dashboard");
+    };
 
-            </button>
+    const openMap = (map) => {
+        navigate("/dashboard", {
+            state: {
+                savedMap: map,
+            },
+        });
+    };
 
-          </div>
+    const handleDelete = async (map) => {
+        const confirmed = window.confirm(
+            `¿Deseas eliminar "${map.name}"? Esta acción no se puede deshacer.`
+        );
 
+        if (!confirmed) return;
 
-          {/* FILTERS */}
+        try {
+            setDeletingId(map.id);
+            await deleteMap(map.id);
+            setMaps((current) => current.filter((item) => item.id !== map.id));
+            setOpenMenuId(null);
+        } catch (error) {
+            console.error("Error eliminando mapa:", error);
+            window.alert(error?.message || "No fue posible eliminar el mapa.");
+        } finally {
+            setDeletingId(null);
+        }
+    };
 
-          {showFilters && (
-
-            <div className="filters-content">
-
-
-              {/* BIOMA */}
-
-              <div className="filter-group">
-
-                <label>
-                  BIOMA
-                </label>
-
-                <div className="filter-options">
-
-                  {[
-                    "Todos",
-                    "Bosque",
-                    "Desierto",
-                    "Urbano",
-                    "Mazmorra",
-                  ].map((item) => {
-
-                    const Icon =
-                      biomeIcons[item];
-
-                    return (
-
-                      <button
-                        key={item}
-                        className={
-                          biome === item
-                            ? "filter-chip active"
-                            : "filter-chip"
-                        }
-                        onClick={() =>
-                          setBiome(item)
-                        }
-                      >
-
-                        <Icon size={12} />
-
-                        {item}
-
-                      </button>
-
-                    );
-
-                  })}
-
+    return (
+        <div className="maps-page">
+            <header className="maps-header">
+                <div className="maps-brand">
+                    <div className="maps-brand-icon">
+                        <Map size={17}/>
+                    </div>
+                    <strong>Rhizome</strong>
                 </div>
 
-              </div>
-
-
-              {/* FECHA */}
-
-              <div className="filter-group">
-
-                <label>
-                  FECHA DE CREACIÓN
-                </label>
-
-                <div className="filter-options">
-
-                  {[
-                    "Cualquier fecha",
-                    "Hoy",
-                    "Últimos 7 días",
-                    "Últimos 30 días",
-                  ].map((item) => (
-
-                    <button
-                      key={item}
-                      className={
-                        dateFilter === item
-                          ? "filter-chip active"
-                          : "filter-chip"
-                      }
-                      onClick={() =>
-                        setDateFilter(item)
-                      }
-                    >
-                      {item}
+                <div className="maps-header-actions">
+                    <button className="new-map-button" onClick={createMap}>
+                        <Plus size={16}/>
+                        Nuevo mapa
                     </button>
 
-                  ))}
+                    <button
+                        className="logout-button"
+                        onClick={logout}
+                        title="Cerrar sesión"
+                    >
+                        <LogOut size={15}/>
+                    </button>
+                </div>
+            </header>
 
+            <main className="maps-content">
+                <div className="maps-title">
+                    <h1>Mis Mapas</h1>
+                    <p>
+                        {loading
+                            ? "Cargando mapas..."
+                            : `${filteredMaps.length} mapas encontrados`}
+                    </p>
                 </div>
 
-              </div>
+                <section className="maps-filter-box">
+                    <div className="maps-search-row">
+                        <div className="maps-search">
+                            <Search size={17}/>
 
+                            <input
+                                type="text"
+                                placeholder="Buscar por nombre de mapa..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
 
-              {/* WIDTH */}
+                            {search && (
+                                <button
+                                    className="clear-search"
+                                    onClick={() => setSearch("")}
+                                    title="Limpiar búsqueda"
+                                >
+                                    <X size={15}/>
+                                </button>
+                            )}
+                        </div>
 
-              <div className="filter-group width-filter">
+                        <button
+                            className="filters-button"
+                            onClick={() => setShowFilters(!showFilters)}
+                        >
+                            <SlidersHorizontal size={15}/>
+                            Filtros
+                            {showFilters ? (
+                                <ChevronUp size={14}/>
+                            ) : (
+                                <ChevronDown size={14}/>
+                            )}
+                        </button>
+                    </div>
 
-                <div className="filter-label-row">
+                    {showFilters && (
+                        <div className="filters-content">
+                            <div className="filter-group">
+                                <label>BIOMA</label>
 
-                  <label>
-                    ANCHO DEL MAPA
-                  </label>
+                                <div className="filter-options">
+                                    {["Todos", "Bosque", "Desierto", "Ciudad", "Mazmorra"].map(
+                                        (item) => {
+                                            const Icon = biomeIcons[item];
 
-                  <strong>
-                    {width}-150
-                  </strong>
+                                            return (
+                                                <button
+                                                    key={item}
+                                                    className={
+                                                        biome === item
+                                                            ? "filter-chip active"
+                                                            : "filter-chip"
+                                                    }
+                                                    onClick={() => setBiome(item)}
+                                                >
+                                                    <Icon size={12}/>
+                                                    {item}
+                                                </button>
+                                            );
+                                        }
+                                    )}
+                                </div>
+                            </div>
 
-                </div>
+                            <div className="filter-group">
+                                <label>FECHA DE CREACIÓN</label>
 
-                <input
-                  type="range"
-                  min="10"
-                  max="150"
-                  value={width}
-                  onChange={(e) =>
-                    setWidth(Number(e.target.value))
-                  }
-                />
+                                <div className="filter-options">
+                                    {[
+                                        "Cualquier fecha",
+                                        "Hoy",
+                                        "Últimos 7 días",
+                                        "Últimos 30 días",
+                                    ].map((item) => (
+                                        <button
+                                            key={item}
+                                            className={
+                                                dateFilter === item
+                                                    ? "filter-chip active"
+                                                    : "filter-chip"
+                                            }
+                                            onClick={() => setDateFilter(item)}
+                                        >
+                                            {item}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
 
-              </div>
+                            <div className="filter-group width-filter">
+                                <div className="filter-label-row">
+                                    <label>ANCHO DEL MAPA</label>
+                                    <strong>{width}-150</strong>
+                                </div>
 
+                                <input
+                                    type="range"
+                                    min="10"
+                                    max="150"
+                                    value={width}
+                                    onChange={(e) => setWidth(Number(e.target.value))}
+                                />
+                            </div>
 
-              {/* SEED */}
+                            <div className="filter-group seed-filter">
+                                <label>SEMILLA</label>
 
-              <div className="filter-group seed-filter">
+                                <input
+                                    type="text"
+                                    placeholder="Ej. 42869"
+                                    value={seed}
+                                    onChange={(e) => setSeed(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    )}
+                </section>
 
-                <label>
-                  SEMILLA
-                </label>
+                {loadError && (
+                    <div className="maps-empty">
+                        <div className="empty-icon">
+                            <X size={42}/>
+                        </div>
+                        <h2>No fue posible cargar los mapas</h2>
+                        <p>{loadError}</p>
+                        <button className="create-first-map" onClick={loadMaps}>
+                            <RefreshCw size={16}/>
+                            Reintentar
+                        </button>
+                    </div>
+                )}
 
-                <input
-                  type="text"
-                  placeholder="Ej. 42869"
-                  value={seed}
-                  onChange={(e) =>
-                    setSeed(e.target.value)
-                  }
-                />
+                {!loadError && filteredMaps.length > 0 && (
+                    <div className="results-toolbar">
+                        <div/>
 
-              </div>
+                        <div className="results-actions">
+                            <span>Ordenar por:</span>
 
-            </div>
+                            <select value={sort} onChange={(e) => setSort(e.target.value)}>
+                                <option>Más recientes</option>
+                                <option>Más antiguos</option>
+                                <option>Nombre A-Z</option>
+                                <option>Nombre Z-A</option>
+                            </select>
 
-          )}
+                            <button
+                                className={
+                                    view === "grid" ? "view-button active" : "view-button"
+                                }
+                                onClick={() => setView("grid")}
+                                title="Vista de cuadrícula"
+                            >
+                                <Grid2X2 size={15}/>
+                            </button>
 
-        </section>
+                            <button
+                                className={
+                                    view === "list" ? "view-button active" : "view-button"
+                                }
+                                onClick={() => setView("list")}
+                                title="Vista de lista"
+                            >
+                                <List size={15}/>
+                            </button>
+                        </div>
+                    </div>
+                )}
 
+                {!loading && !loadError && filteredMaps.length === 0 && (
+                    <div className="maps-empty">
+                        <div className="empty-icon">
+                            <Map size={42}/>
+                        </div>
 
-        {/* =========================
-            RESULTS TOOLBAR
-        ========================== */}
+                        <h2>
+                            {hasActiveFilters(search, biome, dateFilter, width, seed)
+                                ? "No se encontraron mapas"
+                                : "Aún no tienes mapas"}
+                        </h2>
 
-        {filteredMaps.length > 0 && (
+                        <p>
+                            {hasActiveFilters(search, biome, dateFilter, width, seed)
+                                ? "Intenta cambiar los filtros de búsqueda."
+                                : "¡Genera y guarda tu primer mapa!"}
+                        </p>
 
-          <div className="results-toolbar">
+                        {!hasActiveFilters(search, biome, dateFilter, width, seed) && (
+                            <button className="create-first-map" onClick={createMap}>
+                                <Plus size={16}/>
+                                Crear primer mapa
+                            </button>
+                        )}
+                    </div>
+                )}
 
-            <div />
+                {!loading &&
+                    !loadError &&
+                    visibleMaps.length > 0 &&
+                    view === "grid" && (
+                        <div className="maps-grid">
+                            {visibleMaps.map((map) => (
+                                <MapCard
+                                    key={map.id}
+                                    map={map}
+                                    onOpen={() => openMap(map)}
+                                    menuOpen={openMenuId === map.id}
+                                    onToggleMenu={() =>
+                                        setOpenMenuId((current) =>
+                                            current === map.id ? null : map.id
+                                        )
+                                    }
+                                    onDelete={() => handleDelete(map)}
+                                    deleting={deletingId === map.id}
+                                />
+                            ))}
+                        </div>
+                    )}
 
-            <div className="results-actions">
+                {!loading &&
+                    !loadError &&
+                    visibleMaps.length > 0 &&
+                    view === "list" && (
+                        <div className="maps-list">
+                            {visibleMaps.map((map) => (
+                                <MapListItem
+                                    key={map.id}
+                                    map={map}
+                                    onOpen={() => openMap(map)}
+                                    menuOpen={openMenuId === map.id}
+                                    onToggleMenu={() =>
+                                        setOpenMenuId((current) =>
+                                            current === map.id ? null : map.id
+                                        )
+                                    }
+                                    onDelete={() => handleDelete(map)}
+                                    deleting={deletingId === map.id}
+                                />
+                            ))}
+                        </div>
+                    )}
 
-              <span>
-                Ordenar por:
-              </span>
+                {!loading && !loadError && filteredMaps.length > 0 && (
+                    <div className="maps-pagination">
+                        <button
+                            disabled={safePage <= 1}
+                            onClick={() => setPage((current) => Math.max(1, current - 1))}
+                        >
+                            <ChevronLeft size={16}/>
+                        </button>
 
-              <select
-                value={sort}
-                onChange={(e) =>
-                  setSort(e.target.value)
+                        {Array.from({length: totalPages}, (_, index) => index + 1).map(
+                            (pageNumber) => (
+                                <button
+                                    key={pageNumber}
+                                    className={safePage === pageNumber ? "active" : ""}
+                                    onClick={() => setPage(pageNumber)}
+                                >
+                                    {pageNumber}
+                                </button>
+                            )
+                        )}
+
+                        <button
+                            disabled={safePage >= totalPages}
+                            onClick={() =>
+                                setPage((current) => Math.min(totalPages, current + 1))
+                            }
+                        >
+                            <ChevronRight size={16}/>
+                        </button>
+
+                        <span>
+              Mostrando {startIndex + 1}-
+                            {Math.min(startIndex + PAGE_SIZE, filteredMaps.length)} de{" "}
+                            {filteredMaps.length} mapas
+            </span>
+                    </div>
+                )}
+            </main>
+        </div>
+    );
+}
+
+function MapCard({
+                     map,
+                     onOpen,
+                     menuOpen,
+                     onToggleMenu,
+                     onDelete,
+                     deleting,
+                 }) {
+    const biome = normalizeMapType(map.map_type);
+    const Icon = biomeIcons[biome] || Map;
+
+    return (
+        <article
+            className="map-card"
+            onClick={onOpen}
+            style={{cursor: "pointer"}}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onOpen();
                 }
-              >
-                <option>
-                  Más recientes
-                </option>
-
-                <option>
-                  Más antiguos
-                </option>
-
-                <option>
-                  Nombre A-Z
-                </option>
-
-                <option>
-                  Nombre Z-A
-                </option>
-              </select>
-
-
-              <button
-                className={
-                  view === "grid"
-                    ? "view-button active"
-                    : "view-button"
-                }
-                onClick={() =>
-                  setView("grid")
-                }
-              >
-                <Grid2X2 size={15} />
-              </button>
-
-
-              <button
-                className={
-                  view === "list"
-                    ? "view-button active"
-                    : "view-button"
-                }
-                onClick={() =>
-                  setView("list")
-                }
-              >
-                <List size={15} />
-              </button>
-
-            </div>
-
-          </div>
-
-        )}
-
-
-        {/* =========================
-            EMPTY STATE
-        ========================== */}
-
-        {filteredMaps.length === 0 && (
-
-          <div className="maps-empty">
-
-            <div className="empty-icon">
-              <Map size={42} />
-            </div>
-
-            <h2>
-              {search || biome !== "Todos"
-                ? "No se encontraron mapas"
-                : "Aún no tienes mapas"}
-            </h2>
-
-            <p>
-              {search || biome !== "Todos"
-                ? "Intenta cambiar los filtros de búsqueda."
-                : "¡Genera y guarda tu primer mapa!"}
-            </p>
-
-            {!search &&
-              biome === "Todos" && (
+            }}
+        >
+            <div className="map-image">
+                <MapThumbnail matrix={map.matrix} mapType={biome}/>
 
                 <button
-                  className="create-first-map"
-                  onClick={createMap}
+                    className="map-menu"
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        onToggleMenu();
+                    }}
+                    title="Opciones"
                 >
-                  <Plus size={16} />
-                  Crear primer mapa
+                    <MoreVertical size={16}/>
                 </button>
 
-              )}
+                {menuOpen && (
+                    <div className="map-card-menu">
+                        <button
+                            className="map-delete-option"
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onDelete();
+                            }}
+                            disabled={deleting}
+                        >
+                            <Trash2 size={14}/>
+                            {deleting ? "Eliminando..." : "Eliminar"}
+                        </button>
+                    </div>
+                )}
+            </div>
 
-          </div>
+            <div className="map-card-content">
+                <h3>{map.name}</h3>
 
-        )}
+                <div className="map-biome">
+                    <Icon size={13}/>
+                    {biome}
+                </div>
 
+                <p>
+                    {map.width}x{map.height} · {map.tile_size}px
+                </p>
 
-        {/* =========================
-            MAP GRID
-        ========================== */}
+                <p>Semilla: {map.seed}</p>
 
-        {filteredMaps.length > 0 && view === "grid" && (
-
-          <div className="maps-grid">
-
-            {filteredMaps.map((map) => (
-
-              <MapCard
-                key={map.id}
-                map={map}
-              />
-
-            ))}
-
-          </div>
-
-        )}
-
-
-        {/* =========================
-            LIST VIEW
-        ========================== */}
-
-        {filteredMaps.length > 0 && view === "list" && (
-
-          <div className="maps-list">
-
-            {filteredMaps.map((map) => (
-
-              <MapListItem
-                key={map.id}
-                map={map}
-              />
-
-            ))}
-
-          </div>
-
-        )}
-
-
-        {/* PAGINATION */}
-
-        {filteredMaps.length > 0 && (
-
-          <div className="maps-pagination">
-
-            <button>
-              <ChevronLeft size={16} />
-            </button>
-
-            <button className="active">
-              1
-            </button>
-
-            <button>
-              2
-            </button>
-
-            <button>
-              <ChevronRight size={16} />
-            </button>
-
-            <span>
-              Mostrando 1-{filteredMaps.length} de{" "}
-              {filteredMaps.length} mapas
-            </span>
-
-          </div>
-
-        )}
-
-      </main>
-
-    </div>
-  );
+                <small>{formatDate(map.created_at)}</small>
+            </div>
+        </article>
+    );
 }
 
+function MapListItem({
+                         map,
+                         onOpen,
+                         menuOpen,
+                         onToggleMenu,
+                         onDelete,
+                         deleting,
+                     }) {
+    const biome = normalizeMapType(map.map_type);
+    const Icon = biomeIcons[biome] || Map;
 
-/* =====================================================
-   MAP CARD
-===================================================== */
+    return (
+        <article
+            className="map-list-item"
+            onClick={onOpen}
+            style={{cursor: "pointer"}}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onOpen();
+                }
+            }}
+        >
+            <div className="map-list-thumbnail">
+                <MapThumbnail matrix={map.matrix} mapType={biome}/>
+            </div>
 
-function MapCard({ map }) {
+            <div className="map-list-info">
+                <h3>{map.name}</h3>
 
-  const Icon =
-    biomeIcons[map.biome] || Map;
-
-  return (
-
-    <article className="map-card">
-
-      <div className="map-image">
-
-        <img
-          src={map.image}
-          alt={map.name}
-        />
-
-        <button className="map-menu">
-          <MoreVertical size={16} />
-        </button>
-
-      </div>
-
-
-      <div className="map-card-content">
-
-        <h3>
-          {map.name}
-        </h3>
-
-        <div className="map-biome">
-
-          <Icon size={13} />
-
-          {map.biome}
-
-        </div>
-
-        <p>
-          {map.width}x{map.height} ·{" "}
-          {map.tileSize}px
-        </p>
-
-        <p>
-          Semilla: {map.seed}
-        </p>
-
-        <small>
-          {map.created}
-        </small>
-
-      </div>
-
-    </article>
-
-  );
-}
-
-
-/* =====================================================
-   LIST ITEM
-===================================================== */
-
-function MapListItem({ map }) {
-
-  const Icon =
-    biomeIcons[map.biome] || Map;
-
-  return (
-
-    <article className="map-list-item">
-
-      <img
-        src={map.image}
-        alt={map.name}
-      />
-
-      <div className="map-list-info">
-
-        <h3>
-          {map.name}
-        </h3>
-
-        <span>
-          <Icon size={13} />
-          {map.biome}
+                <span>
+          <Icon size={13}/>
+                    {biome}
         </span>
+            </div>
 
-      </div>
+            <div>
+                {map.width}x{map.height}
+            </div>
 
-      <div>
-        {map.width}x{map.height}
-      </div>
+            <div>{map.tile_size}px</div>
 
-      <div>
-        {map.tileSize}px
-      </div>
+            <div>Semilla: {map.seed}</div>
 
-      <div>
-        Semilla: {map.seed}
-      </div>
+            <div>{formatDate(map.created_at)}</div>
 
-      <div>
-        {map.created}
-      </div>
+            <div className="map-list-menu-wrapper">
+                <button
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        onToggleMenu();
+                    }}
+                >
+                    <MoreVertical size={16}/>
+                </button>
 
-      <button>
-        <MoreVertical size={16} />
-      </button>
-
-    </article>
-
-  );
+                {menuOpen && (
+                    <div className="map-card-menu">
+                        <button
+                            className="map-delete-option"
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onDelete();
+                            }}
+                            disabled={deleting}
+                        >
+                            <Trash2 size={14}/>
+                            {deleting ? "Eliminando..." : "Eliminar"}
+                        </button>
+                    </div>
+                )}
+            </div>
+        </article>
+    );
 }
 
+function MapThumbnail({matrix, mapType}) {
+    if (!Array.isArray(matrix) || !Array.isArray(matrix[0])) {
+        return (
+            <div className="map-thumbnail-empty">
+                <Map size={30}/>
+                <span>Sin vista previa</span>
+            </div>
+        );
+    }
+
+    const rows = matrix.length;
+    const columns = matrix[0].length;
+    const maxPreview = 55;
+
+    const rowStep = Math.max(1, Math.ceil(rows / maxPreview));
+    const columnStep = Math.max(1, Math.ceil(columns / maxPreview));
+
+    const preview = matrix
+        .filter((_, rowIndex) => rowIndex % rowStep === 0)
+        .map((row) =>
+            row.filter((_, columnIndex) => columnIndex % columnStep === 0)
+        );
+
+    return (
+        <div
+            className="map-thumbnail"
+            style={{
+                display: "grid",
+                gridTemplateColumns: `repeat(${preview[0].length}, 1fr)`,
+                gridTemplateRows: `repeat(${preview.length}, 1fr)`,
+                width: "100%",
+                height: "100%",
+                overflow: "hidden",
+            }}
+            aria-label={`Vista previa de ${columns} por ${rows}`}
+        >
+            {preview.flatMap((row, y) =>
+                row.map((cell, x) => (
+                    <span
+                        key={`${y}-${x}`}
+                        style={{
+                            background: getMapColor(mapType, Number(cell)),
+                            minWidth: 0,
+                            minHeight: 0,
+                        }}
+                    />
+                ))
+            )}
+        </div>
+    );
+}
+
+function normalizeMapType(type) {
+    const value = String(type ?? "").trim().toLowerCase();
+
+    if (value === "bosque") return "Bosque";
+    if (value === "desierto") return "Desierto";
+    if (value === "ciudad" || value === "urbano") return "Ciudad";
+    if (value === "mazmorra") return "Mazmorra";
+
+    return type ? String(type) : "Mapa";
+}
+
+function getMapColor(type, value) {
+    const active = value !== 0;
+
+    switch (String(type ?? "").toLowerCase()) {
+        case "bosque":
+            return active ? "#22c55e" : "#123524";
+
+        case "desierto":
+            return active ? "#f4c76b" : "#8b5e34";
+
+        case "ciudad":
+        case "urbano":
+            return active ? "#cbd5e1" : "#334155";
+
+        case "mazmorra":
+            return active ? "#d1d5db" : "#111827";
+
+        default:
+            return active ? "#10b981" : "#111827";
+    }
+}
+
+function formatDate(value) {
+    if (!value) return "Sin fecha";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return "Sin fecha";
+    }
+
+    return new Intl.DateTimeFormat("es-CO", {
+        dateStyle: "medium",
+        timeStyle: "short",
+    }).format(date);
+}
+
+function hasActiveFilters(search, biome, dateFilter, width, seed) {
+    return (
+        Boolean(search) ||
+        biome !== "Todos" ||
+        dateFilter !== "Cualquier fecha" ||
+        width !== 10 ||
+        Boolean(seed)
+    );
+}
 
 export default MyMaps;

@@ -163,6 +163,12 @@ export default function Login() {
 
               {/* LOGIN */}
 
+              <div className="login-link" style={{ textAlign: "right", marginBottom: "12px" }}>
+                <span onClick={() => navigate("/forgot-password")}>
+                  ¿Olvidaste tu contraseña?
+                </span>
+              </div>
+
               <button
                 type="submit"
                 disabled={loading}
