@@ -28,29 +28,67 @@ import {
 
 import {supabase} from "../../../lib/supabase";
 
+// Normaliza los datos guardados para inicializar el Dashboard sin efectos de estado.
+function restoreSavedMap(savedMap) {
+    if (!savedMap) return null;
+
+    const mapTypes = {
+        bosque: "Bosque", desierto: "Desierto", ciudad: "Ciudad",
+        urbano: "Ciudad", mazmorra: "Mazmorra",
+    };
+    const complexities = {
+        low: "Bajo", medium: "Medio", high: "Alto",
+        bajo: "Bajo", medio: "Medio", alto: "Alto",
+    };
+    const mapType = mapTypes[String(savedMap.map_type ?? "").toLowerCase()] || "Bosque";
+    const algorithm = String(
+        savedMap.algorithm ?? (mapType === "Mazmorra" ? "cellular" : "perlin")
+    ).toLowerCase();
+    const storedGeneration = savedMap.generation_data;
+    const generatedMap = storedGeneration && typeof storedGeneration === "object"
+        ? storedGeneration
+        : {
+            map: savedMap.matrix,
+            matrix: savedMap.matrix,
+            metrics: savedMap.metrics,
+            seed: savedMap.seed,
+            algorithm,
+        };
+
+    return {
+        mapType,
+        algorithm,
+        width: Number(savedMap.width ?? 50),
+        height: Number(savedMap.height ?? 35),
+        seed: Number(savedMap.seed ?? 42),
+        complexity: complexities[String(savedMap.complexity ?? "").toLowerCase()] || "Medio",
+        tileSize: Number(savedMap.tile_size ?? 16),
+        generatedMap,
+    };
+}
+
 function Dashboard() {
     const navigate = useNavigate();
     const location = useLocation();
     const savedMap = location.state?.savedMap ?? null;
 
+    // La función inicializadora se ejecuta solo al montar esta instancia.
+    const [restored] = useState(() => restoreSavedMap(savedMap));
+
     const [mapType, setMapType] = useState(
-        () => localStorage.getItem("rhizome.mapType") || "Mazmorra"
+        () => restored?.mapType ?? localStorage.getItem("rhizome.mapType") ?? "Mazmorra"
     );
-
-    const [width, setWidth] = useState(50);
-    const [height, setHeight] = useState(35);
-    const [seed, setSeed] = useState(539989);
-
+    const [width, setWidth] = useState(() => restored?.width ?? 50);
+    const [height, setHeight] = useState(() => restored?.height ?? 35);
+    const [seed, setSeed] = useState(() => restored?.seed ?? 539989);
     const [algorithm, setAlgorithm] = useState(
-        () => localStorage.getItem("rhizome.algorithm") || "cellular"
+        () => restored?.algorithm ?? localStorage.getItem("rhizome.algorithm") ?? "cellular"
     );
     const [showManual, setShowManual] = useState(false);
-
-    const [complexity, setComplexity] = useState("Medio");
-    const [tileSize, setTileSize] = useState(16);
-
+    const [complexity, setComplexity] = useState(() => restored?.complexity ?? "Medio");
+    const [tileSize, setTileSize] = useState(() => restored?.tileSize ?? 16);
     const [generating, setGenerating] = useState(false);
-    const [generatedMap, setGeneratedMap] = useState(null);
+    const [generatedMap, setGeneratedMap] = useState(() => restored?.generatedMap ?? null);
     const [generationError, setGenerationError] = useState("");
 
     // Métricas de solo lectura. No usamos setters independientes:
@@ -64,66 +102,6 @@ function Dashboard() {
         localStorage.setItem("rhizome.mapType", mapType);
         localStorage.setItem("rhizome.algorithm", algorithm);
     }, [mapType, algorithm]);
-
-    // Si el usuario abre un mapa desde "Mis Mapas", cargamos exactamente
-    // sus parámetros y el resultado almacenado, sin regenerarlo automáticamente.
-    useEffect(() => {
-        if (!savedMap) return;
-
-        const mapTypeMap = {
-            bosque: "Bosque",
-            desierto: "Desierto",
-            ciudad: "Ciudad",
-            urbano: "Ciudad",
-            mazmorra: "Mazmorra",
-        };
-
-        const complexityMap = {
-            low: "Bajo",
-            medium: "Medio",
-            high: "Alto",
-            bajo: "Bajo",
-            medio: "Medio",
-            alto: "Alto",
-        };
-
-        const restoredType =
-            mapTypeMap[String(savedMap.map_type ?? "").toLowerCase()] ||
-            "Bosque";
-
-        const restoredAlgorithm =
-            String(
-                savedMap.algorithm ??
-                (restoredType === "Mazmorra" ? "cellular" : "perlin")
-            ).toLowerCase();
-
-        setMapType(restoredType);
-        setAlgorithm(restoredAlgorithm);
-        setWidth(Number(savedMap.width ?? 50));
-        setHeight(Number(savedMap.height ?? 35));
-        setSeed(Number(savedMap.seed ?? 42));
-        setComplexity(
-            complexityMap[String(savedMap.complexity ?? "").toLowerCase()] ||
-            "Medio"
-        );
-        setTileSize(Number(savedMap.tile_size ?? 16));
-
-        const storedGeneration = savedMap.generation_data;
-
-        if (storedGeneration && typeof storedGeneration === "object") {
-            setGeneratedMap(storedGeneration);
-        } else {
-            setGeneratedMap({
-                map: savedMap.matrix,
-                matrix: savedMap.matrix,
-                metrics: savedMap.metrics,
-                seed: savedMap.seed,
-                algorithm: restoredAlgorithm,
-            });
-        }
-
-        setGenerationError("");
-    }, [savedMap]);
 
     useEffect(() => {
         if (!showManual) return undefined;
@@ -222,6 +200,7 @@ function Dashboard() {
     };
 
     const generateMap = async () => {
+        console.log("GENERACIÓN NUEVA SOLICITADA");
         try {
             setGenerating(true);
             setGenerationError("");
@@ -246,7 +225,12 @@ function Dashboard() {
             console.log("Solicitud enviada al backend:", payload);
 
             const response = await generateAdaptiveMap(payload);
-
+            console.log("========== DIAGNÓSTICO VITE ==========");
+            console.log("MODE:", import.meta.env.MODE);
+            console.log("DEV:", import.meta.env.DEV);
+            console.log("VITE_API_BASE_URL:", import.meta.env.VITE_API_BASE_URL);
+            console.log("ORIGEN FRONTEND:", window.location.origin);
+            console.log("======================================");
             console.log("Respuesta del backend:", response);
             setGeneratedMap(response);
         } catch (error) {
@@ -280,7 +264,7 @@ function Dashboard() {
                         <Map size={17}/>
                     </div>
 
-                    <strong>Rhizome</strong>
+                    <strong>RHYZOME - VERSION LOCAL 2026</strong>
                 </div>
 
                 <div className="header-actions">
@@ -434,14 +418,16 @@ function Dashboard() {
                             title="Ruido Perlin/Simplex"
                             description="Terreno orgánico y natural"
                             enabled={algorithm === "perlin"}
-                            onSelect={() => {}}
+                            onSelect={() => {
+                            }}
                         />
 
                         <Algorithm
                             title="Autómatas Celulares"
                             description="Genera cuevas y grutas"
                             enabled={algorithm === "cellular"}
-                            onSelect={() => {}}
+                            onSelect={() => {
+                            }}
                         />
 
                     </section>
@@ -810,7 +796,6 @@ function MapMatrixPreview({response, mapType}) {
 }
 
 
-
 function toPercent(value) {
     const number = Number(value);
     if (!Number.isFinite(number)) return 0;
@@ -888,4 +873,11 @@ function getExportColor(mapType, value) {
     return active ? "#d1d5db" : "#111827";
 }
 
-export default Dashboard;
+// Una nueva entrada del historial monta una instancia nueva y restaura su mapa.
+function DashboardPage() {
+    const location = useLocation();
+    return <Dashboard key={location.key} />;
+}
+
+export default DashboardPage;
+
