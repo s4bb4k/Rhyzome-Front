@@ -1677,3 +1677,47 @@
 .workspace-error span { color: #c98c98; }
 .algorithm-locked { cursor: default !important; opacity: .95; }
 .export-buttons button:disabled { opacity: .35; cursor: not-allowed; }
+
+/* ========================================
+   RHYZOME - PAPELERA EN TARJETAS
+======================================== */
+
+.map-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.map-card-header h3 {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Papelera ubicada en la zona de información */
+.map-delete-button-card {
+  position: static;
+  flex-shrink: 0;
+
+  width: 34px;
+  height: 34px;
+
+  background: #3b171c;
+  color: #f87171;
+
+  border: 1px solid #7f1d1d;
+  border-radius: 8px;
+
+  transition: all 0.2s ease;
+}
+
+.map-delete-button-card:hover:not(:disabled) {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #ef4444;
+  transform: scale(1.05);
+}

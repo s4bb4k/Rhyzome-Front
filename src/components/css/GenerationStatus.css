@@ -1,0 +1,136 @@
+/* ==========================================
+   RHYZOME - ESTADO DE GENERACIÓN
+   ========================================== */
+
+.generation-status {
+    display: flex;
+    align-items: flex-start;
+
+    gap: 12px;
+
+    width: 100%;
+
+    margin-top: 14px;
+    padding: 14px;
+
+    box-sizing: border-box;
+
+    border-radius: 10px;
+    border: 1px solid transparent;
+
+    transition:
+            background-color 0.2s ease,
+            border-color 0.2s ease;
+}
+
+/* ==========================================
+   ICONO
+   ========================================== */
+
+.generation-status-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    flex-shrink: 0;
+
+    margin-top: 2px;
+}
+
+/* ==========================================
+   CONTENIDO
+   ========================================== */
+
+.generation-status-content {
+    display: flex;
+    flex-direction: column;
+
+    gap: 5px;
+
+    min-width: 0;
+}
+
+.generation-status-content strong {
+    font-size: 12px;
+    font-weight: 700;
+
+    line-height: 1.4;
+}
+
+.generation-status-content p {
+    margin: 0;
+
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+/* ==========================================
+   CONFIGURACIÓN APLICADA
+   ========================================== */
+
+.generation-status-success {
+    background: rgba(16, 185, 129, 0.07);
+
+    border-color: rgba(16, 185, 129, 0.22);
+}
+
+.generation-status-success .generation-status-icon {
+    color: #34d399;
+}
+
+.generation-status-success strong {
+    color: #6ee7b7;
+}
+
+.generation-status-success p {
+    color: #94a3b8;
+}
+
+/* ==========================================
+   CAMBIOS PENDIENTES
+   ========================================== */
+
+.generation-status-pending {
+    background: rgba(245, 158, 11, 0.07);
+
+    border-color: rgba(245, 158, 11, 0.25);
+}
+
+.generation-status-pending .generation-status-icon {
+    color: #fbbf24;
+}
+
+.generation-status-pending strong {
+    color: #fcd34d;
+}
+
+.generation-status-pending p {
+    color: #cbd5e1;
+}
+
+/* ==========================================
+   RESPONSIVE
+   ========================================== */
+
+@media (max-width: 600px) {
+
+    .generation-status {
+        padding: 12px;
+        gap: 10px;
+    }
+
+    .generation-status-content strong {
+        font-size: 12px;
+    }
+
+    .generation-status-content p {
+        font-size: 11px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .generation-status {
+        transition: none;
+    }
+}

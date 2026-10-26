@@ -1,0 +1,264 @@
+/* ==========================================
+   RHYZOME - METRIC TOOLTIPS
+   ========================================== */
+
+/* CONTENEDOR PRINCIPAL */
+
+.metric-tooltip-container {
+    position: relative;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    flex-shrink: 0;
+    vertical-align: middle;
+}
+
+/* ==========================================
+   BOTÓN DE INFORMACIÓN
+   ========================================== */
+
+.metric-tooltip-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 24px;
+    height: 24px;
+
+    padding: 0;
+
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 50%;
+
+    color: #94a3b8;
+
+    cursor: pointer;
+
+    transition:
+            color 0.2s ease,
+            background-color 0.2s ease,
+            border-color 0.2s ease,
+            transform 0.2s ease;
+}
+
+/* HOVER */
+
+.metric-tooltip-trigger:hover {
+    color: #34d399;
+
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.2);
+
+    transform: scale(1.08);
+}
+
+/* TOOLTIP ABIERTO */
+
+.metric-tooltip-trigger[aria-expanded="true"] {
+    color: #34d399;
+
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+/* ACCESIBILIDAD */
+
+.metric-tooltip-trigger:focus-visible {
+    outline: 2px solid #34d399;
+    outline-offset: 3px;
+}
+
+/* ==========================================
+   TARJETA DEL TOOLTIP
+   ========================================== */
+
+.metric-tooltip-content {
+    position: absolute;
+
+    /* POSICIÓN A LA DERECHA DEL ÍCONO */
+
+    top: 50%;
+    left: calc(100% + 12px);
+    right: auto;
+    bottom: auto;
+
+    transform: translateY(-50%);
+
+    z-index: 9999;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 8px;
+
+    width: 240px;
+    max-width: calc(100vw - 32px);
+
+    padding: 14px 16px;
+
+    background: #1a2432;
+
+    border: 1px solid #334155;
+    border-radius: 10px;
+
+    box-shadow:
+            0 12px 30px rgba(0, 0, 0, 0.4),
+            0 4px 10px rgba(0, 0, 0, 0.2);
+
+    color: #cbd5e1;
+
+    text-align: left;
+
+    pointer-events: auto;
+
+    animation: metric-tooltip-appear 0.18s ease-out;
+}
+
+/* ==========================================
+   TÍTULO DEL TOOLTIP
+   ========================================== */
+
+.metric-tooltip-content strong {
+    display: block;
+
+    margin: 0;
+
+    color: #34d399;
+
+    font-size: 13px;
+    font-weight: 700;
+
+    line-height: 1.4;
+    letter-spacing: 0.3px;
+}
+
+/* ==========================================
+   DESCRIPCIÓN
+   ========================================== */
+
+.metric-tooltip-content > span {
+    display: block;
+
+    color: #cbd5e1;
+
+    font-size: 12px;
+    font-weight: 400;
+
+    line-height: 1.6;
+
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+
+/* ==========================================
+   INDICADOR VISUAL (FLECHA)
+   ========================================== */
+
+.metric-tooltip-content::before {
+    content: "";
+
+    position: absolute;
+
+    top: 50%;
+    left: -6px;
+
+    width: 10px;
+    height: 10px;
+
+    background: #1a2432;
+
+    border-left: 1px solid #334155;
+    border-bottom: 1px solid #334155;
+
+    transform: translateY(-50%) rotate(45deg);
+}
+
+/* ==========================================
+   ANIMACIÓN DE APARICIÓN
+   ========================================== */
+
+@keyframes metric-tooltip-appear {
+    from {
+        opacity: 0;
+        transform: translateY(calc(-50% + 5px));
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(-50%);
+    }
+}
+
+/* ==========================================
+   RESPONSIVE
+   ========================================== */
+
+@media (max-width: 600px) {
+
+    .metric-tooltip-trigger {
+        width: 26px;
+        height: 26px;
+    }
+
+    .metric-tooltip-content {
+        width: 210px;
+
+        /* En móviles aparece debajo del ícono */
+
+        top: calc(100% + 12px);
+        left: 50%;
+        right: auto;
+        bottom: auto;
+
+        transform: translateX(-50%);
+
+        padding: 12px 14px;
+
+        animation: metric-tooltip-mobile-appear 0.18s ease-out;
+    }
+
+    .metric-tooltip-content::before {
+        top: -6px;
+        left: 50%;
+
+        border-left: 1px solid #334155;
+        border-top: 1px solid #334155;
+        border-bottom: none;
+
+        transform: translateX(-50%) rotate(45deg);
+    }
+}
+
+/* ==========================================
+   ANIMACIÓN MÓVIL
+   ========================================== */
+
+@keyframes metric-tooltip-mobile-appear {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* ==========================================
+   ACCESIBILIDAD - REDUCIR MOVIMIENTO
+   ========================================== */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .metric-tooltip-content {
+        animation: none;
+    }
+
+    .metric-tooltip-trigger {
+        transition: none;
+    }
+}
