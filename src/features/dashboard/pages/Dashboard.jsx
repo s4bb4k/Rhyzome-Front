@@ -1,5 +1,7 @@
-import {useEffect, useState} from "react";
 import {useLocation, useNavigate} from "react-router-dom";
+import MapRenderer from "../../../components/MapRenderer";
+import {getTerrainSprite} from "../../../utils/terrainSprites";
+
 import {
     generateAdaptiveMap
 } from "../../../services/mapsApi";
@@ -23,12 +25,31 @@ import {
     Sparkles,
     BookOpen,
     X,
-    BadgeCheck
+    BadgeCheck,
+    CheckCircle2,
+    LoaderCircle
 } from "lucide-react";
 
 import {supabase} from "../../../lib/supabase";
 
-// Normaliza los datos guardados para inicializar el Dashboard sin efectos de estado.
+import {toast} from "sonner";
+import "../../../components/css/DashboardActions.css";
+
+import MapLoader from "../../../components/MapLoader";
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    useState
+} from "react";
+import MetricTooltip from "../../../components/MetricTooltip";
+import MapLegend from "../../../components/MapLegend";
+import MapViewer from "../../../components/MapViewer";
+import GenerationError from "../../../components/GenerationError.jsx";
+import GenerationStatus from "../../../components/GenerationStatus";
+import UnsavedMapDialog from "../../../components/UnsavedMapDialog";
+import MapHistory from "../../../components/MapHistory";
+
 function restoreSavedMap(savedMap) {
     if (!savedMap) return null;
 
@@ -91,12 +112,62 @@ function Dashboard() {
     const [generatedMap, setGeneratedMap] = useState(() => restored?.generatedMap ?? null);
     const [generationError, setGenerationError] = useState("");
 
+    const [generationErrorType, setGenerationErrorType] =
+        useState("unknown");
+
+    const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+    const [pendingHistoryId, setPendingHistoryId] = useState(null);
+    const [mapHistory, setMapHistory] = useState([]);
+    const [activeMapId, setActiveMapId] = useState(null);
+    const historyCounterRef = useRef(0);
+
+    const [lastGeneratedConfig, setLastGeneratedConfig] = useState(() =>
+        restored ? getGenerationConfig(restored) : null
+    );
+
+    // Estado del guardado del mapa actual
+    const [isSaving, setIsSaving] = useState(false);
+    // Si se abrió desde Mis Mapas, ya está guardado
+    const [isMapSaved, setIsMapSaved] = useState(
+        () => Boolean(savedMap)
+    );
+    // Evita dos solicitudes de guardado simultáneas
+    const savingRef = useRef(false);
+
+    // Comparar únicamente los parámetros que afectan la generación.
+    // tileSize se excluye: modifica la visualización, no la matriz.
+    const currentGenerationConfig = useMemo(() => getGenerationConfig({
+        mapType,
+        algorithm,
+        width,
+        height,
+        seed,
+        complexity,
+    }), [mapType, algorithm, width, height, seed, complexity]);
+
+    const hasPendingChanges = useMemo(() => {
+        if (!generatedMap || !lastGeneratedConfig) return false;
+        return JSON.stringify(currentGenerationConfig) !==
+            JSON.stringify(lastGeneratedConfig);
+    }, [generatedMap, currentGenerationConfig, lastGeneratedConfig]);
+
+    // El mapa visible y sus exportaciones deben usar la configuración con la
+    // que se generó, no los valores editados que aún están pendientes.
+    const visibleMapType = lastGeneratedConfig?.mapType ?? mapType;
+    const visibleAlgorithm = lastGeneratedConfig?.algorithm ?? algorithm;
+    const visibleWidth = lastGeneratedConfig?.width ?? Number(width);
+    const visibleHeight = lastGeneratedConfig?.height ?? Number(height);
+    const visibleSeed = lastGeneratedConfig?.seed ?? String(seed);
+    const visibleComplexity = lastGeneratedConfig?.complexity ?? complexity;
+
     // Métricas de solo lectura. No usamos setters independientes:
     // los valores se derivan de la respuesta real del backend.
     const evaluationMetrics = getEvaluationMetrics(generatedMap);
     const quality = evaluationMetrics.quality;
-    const compression = evaluationMetrics.compression;
+    const connectivity = evaluationMetrics.connectivity;
     const accessibility = evaluationMetrics.accessibility;
+
+
 
     useEffect(() => {
         localStorage.setItem("rhizome.mapType", mapType);
@@ -115,20 +186,71 @@ function Dashboard() {
     }, [showManual]);
 
     const handleSaveMap = async () => {
+
+        // Evitar guardar sin un mapa generado
         if (!generatedMap) {
-            alert("Primero debes generar un mapa.");
+            toast.warning("Primero debes generar un mapa.");
             return;
         }
 
+        // Evitar solicitudes simultáneas
+        if (savingRef.current) {
+            return;
+        }
+
+        // Evitar guardar nuevamente el mismo resultado
+        if (isMapSaved) {
+            toast.info("Este mapa ya se encuentra guardado.");
+            return;
+        }
+
+        savingRef.current = true;
+        setIsSaving(true);
+
         try {
-            const savedMap = await saveMap({
-                mapType, algorithm, width, height, seed, complexity, tileSize, generatedMap,
+
+            const savedMapResult = await saveMap({
+                mapType: visibleMapType,
+                algorithm: visibleAlgorithm,
+                width: visibleWidth,
+                height: visibleHeight,
+                seed: visibleSeed,
+                complexity: visibleComplexity,
+                tileSize,
+                generatedMap,
             });
-            console.log("Mapa guardado en Supabase:", savedMap);
-            alert("Mapa guardado correctamente.");
+
+            console.log(
+                "Mapa guardado en Supabase:",
+                savedMapResult
+            );
+
+            // Marcar el resultado actual como guardado, también en el historial.
+            setIsMapSaved(true);
+            setMapHistory((previous) => previous.map((item) =>
+                item.id === activeMapId ? { ...item, isSaved: true } : item
+            ));
+
+            toast.success("Mapa guardado correctamente", {
+                description:
+                    "Puedes consultarlo en la sección Mis Mapas.",
+            });
+
         } catch (error) {
+
             console.error("Error guardando mapa:", error);
-            alert(error?.message || "No fue posible guardar el mapa.");
+
+            toast.error("No fue posible guardar el mapa", {
+                description:
+                    error?.message ||
+                    "Ocurrió un error al guardar el mapa en Supabase.",
+            });
+
+        } finally {
+
+            savingRef.current = false;
+            setIsSaving(false);
+
         }
     };
 
@@ -139,12 +261,12 @@ function Dashboard() {
             rhyzome_version: "1.0",
             exported_at: new Date().toISOString(),
             configuration: {
-                map_type: mapType,
-                algorithm,
-                width: Number(width),
-                height: Number(height),
-                seed: Number(seed),
-                complexity,
+                map_type: visibleMapType,
+                algorithm: visibleAlgorithm,
+                width: visibleWidth,
+                height: visibleHeight,
+                seed: Number(visibleSeed),
+                complexity: visibleComplexity,
                 tile_size: Number(tileSize),
             },
             result: generatedMap,
@@ -156,42 +278,184 @@ function Dashboard() {
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = `rhyzome_${mapType.toLowerCase()}_${seed}.json`;
+        link.download = `rhyzome_${visibleMapType.toLowerCase()}_${visibleSeed}.json`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
     };
 
-    const handleExportPNG = () => {
+    const handleExportPNG = async () => {
         if (!generatedMap) return;
 
         const matrix = getMapMatrix(generatedMap);
-        if (!Array.isArray(matrix) || !Array.isArray(matrix[0])) {
-            alert("No se encontró una matriz válida para exportar.");
+
+        // Validar que exista una matriz rectangular
+        if (
+            !Array.isArray(matrix) ||
+            matrix.length === 0 ||
+            !Array.isArray(matrix[0]) ||
+            matrix[0].length === 0 ||
+            !matrix.every(
+                (row) =>
+                    Array.isArray(row) &&
+                    row.length === matrix[0].length
+            )
+        ) {
+            toast.error("No se encontró una matriz válida para exportar.");
             return;
         }
 
         const rows = matrix.length;
         const columns = matrix[0].length;
-        const pixelSize = 10;
-        const canvas = document.createElement("canvas");
-        canvas.width = columns * pixelSize;
-        canvas.height = rows * pixelSize;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
 
-        matrix.forEach((row, y) => {
-            row.forEach((cell, x) => {
-                ctx.fillStyle = getExportColor(mapType, Number(cell));
-                ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
+        // Utilizar el tamaño seleccionado en el Dashboard
+        const pixelSize = Math.max(1, Math.round(Number(tileSize) || 16));
+
+        const terrainType = String(
+            generatedMap.ui_config?.terrain_type ??
+            generatedMap.parameters?.terrain_type ??
+            visibleMapType
+        ).toLowerCase();
+
+        try {
+            // Obtener los sprites necesarios para el terreno
+            const spriteSources = new Set();
+
+            matrix.forEach((row) => {
+                row.forEach((cell) => {
+                    const sprite = getTerrainSprite(
+                        terrainType,
+                        Number(cell)
+                    );
+
+                    if (sprite) {
+                        spriteSources.add(sprite);
+                    }
+                });
             });
-        });
 
-        const link = document.createElement("a");
-        link.download = `rhyzome_${mapType.toLowerCase()}_${seed}.png`;
-        link.href = canvas.toDataURL("image/png");
-        link.click();
+            // Cargar cada sprite una sola vez
+            const spriteEntries = await Promise.all(
+                [...spriteSources].map(async (src) => {
+                    const image = await loadSprite(src);
+                    return [src, image];
+                })
+            );
+
+            const loadedSprites = new globalThis.Map(spriteEntries);
+
+            // Crear el canvas
+            const canvas = document.createElement("canvas");
+
+            canvas.width = columns * pixelSize;
+            canvas.height = rows * pixelSize;
+
+            const ctx = canvas.getContext("2d");
+
+            if (!ctx) {
+                throw new Error(
+                    "No se pudo crear el contexto del canvas."
+                );
+            }
+
+            // Mantener la apariencia pixel art
+            ctx.imageSmoothingEnabled = false;
+
+            // Dibujar la matriz utilizando los sprites
+            matrix.forEach((row, y) => {
+                row.forEach((cell, x) => {
+                    const cellValue = Number(cell);
+
+                    const spriteSrc = getTerrainSprite(
+                        terrainType,
+                        cellValue
+                    );
+
+                    const image = loadedSprites.get(spriteSrc);
+
+                    const posX = x * pixelSize;
+                    const posY = y * pixelSize;
+
+                    // Color de respaldo
+                    ctx.fillStyle = getExportColor(
+                        terrainType,
+                        cellValue
+                    );
+
+                    ctx.fillRect(
+                        posX,
+                        posY,
+                        pixelSize,
+                        pixelSize
+                    );
+
+                    if (!image) return;
+
+                    // Aplicar el mismo contraste del Dashboard
+                    if (terrainType === "mazmorra") {
+                        ctx.filter =
+                            cellValue === 0
+                                ? "brightness(0.35)"
+                                : "brightness(1.15)";
+                    } else {
+                        ctx.filter = "none";
+                    }
+
+                    ctx.drawImage(
+                        image,
+                        posX,
+                        posY,
+                        pixelSize,
+                        pixelSize
+                    );
+
+                    // Evitar que el filtro afecte otras celdas
+                    ctx.filter = "none";
+                });
+            });
+
+            // Exportar PNG
+            const blob = await new Promise((resolve, reject) => {
+                canvas.toBlob(
+                    (result) => {
+                        if (result) {
+                            resolve(result);
+                        } else {
+                            reject(
+                                new Error("No se pudo generar el PNG.")
+                            );
+                        }
+                    },
+                    "image/png"
+                );
+            });
+
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement("a");
+
+            link.href = url;
+
+            link.download =
+                `rhyzome_${terrainType}_${visibleSeed}.png`;
+
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+
+            toast.success("Descarga PNG iniciada");
+            // Liberar la URL temporal después de iniciar la descarga
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+        } catch (error) {
+            console.error("Error exportando PNG:", error);
+
+            toast.error(
+                error?.message ||
+                "No fue posible exportar el mapa como PNG."
+            );
+        }
     };
 
     const selectMapType = (selectedType) => {
@@ -200,10 +464,12 @@ function Dashboard() {
     };
 
     const generateMap = async () => {
+        if (generating || isSaving) return;
         console.log("GENERACIÓN NUEVA SOLICITADA");
         try {
             setGenerating(true);
             setGenerationError("");
+            setGenerationErrorType("unknown");
 
             const complexityMap = {
                 Bajo: "low",
@@ -222,26 +488,142 @@ function Dashboard() {
                 attempts: 20,
             };
 
+            // Captura exactamente los parámetros enviados a esta solicitud.
+            const requestedConfig = getGenerationConfig({
+                mapType,
+                algorithm,
+                width,
+                height,
+                seed,
+                complexity,
+            });
+
             console.log("Solicitud enviada al backend:", payload);
 
             const response = await generateAdaptiveMap(payload);
+            // Simular una demora de 3 segundos solo en desarrollo
+            /*if (import.meta.env.DEV) {
+                await new Promise((resolve) => setTimeout(resolve, 3000));
+            }*/
             console.log("========== DIAGNÓSTICO VITE ==========");
             console.log("MODE:", import.meta.env.MODE);
             console.log("DEV:", import.meta.env.DEV);
             console.log("VITE_API_BASE_URL:", import.meta.env.VITE_API_BASE_URL);
             console.log("ORIGEN FRONTEND:", window.location.origin);
             console.log("======================================");
+
             console.log("Respuesta del backend:", response);
             setGeneratedMap(response);
+            setLastGeneratedConfig(requestedConfig);
+            // El nuevo mapa todavía no está guardado.
+            setIsMapSaved(false);
+
+            // Solo registrar respuestas exitosas, conservando como máximo cinco.
+            historyCounterRef.current += 1;
+            const historyId = `map-${historyCounterRef.current}`;
+            const entry = {
+                id: historyId,
+                generatedMap: response,
+                config: requestedConfig,
+                tileSize: Number(tileSize),
+                quality: getEvaluationMetrics(response).quality,
+                isSaved: false,
+            };
+            setMapHistory((previous) => [entry, ...previous].slice(0, 5));
+            setActiveMapId(historyId);
+
         } catch (error) {
-            console.error("Error generando mapa:", error);
-            setGeneratedMap(null);
+
+            console.error("Error durante la generación del mapa:", error);
+            const errorType = classifyGenerationError(error);
+            // No borrar el último mapa exitoso ante un error de red.
+            setGenerationErrorType(errorType);
             setGenerationError(
-                error?.message || "No fue posible generar el mapa. Verifica la conexión con el backend."
+                error?.message || "No se pudo completar la generación del mapa."
             );
         } finally {
             setGenerating(false);
         }
+    };
+
+    /* ==========================================
+   CONFIRMACIÓN DE MAPA SIN GUARDAR
+   ========================================== */
+
+    const handleGenerateRequest = () => {
+
+        if (generating || isSaving) return;
+
+        // Verificar si existe un mapa sin guardar
+        if (generatedMap && !isMapSaved) {
+            setShowUnsavedDialog(true);
+            return;
+        }
+
+        // Generar directamente si no existe mapa
+        // o si el mapa actual ya está guardado
+        generateMap();
+    };
+
+    const restoreHistoryMap = (historyId) => {
+        const selected = mapHistory.find((item) => item.id === historyId);
+        if (!selected) return;
+
+        const config = selected.config;
+        setGeneratedMap(selected.generatedMap);
+        setLastGeneratedConfig(config);
+        setMapType(config.mapType);
+        setAlgorithm(config.algorithm);
+        setWidth(config.width);
+        setHeight(config.height);
+        setSeed(config.seed);
+        setComplexity(config.complexity);
+        setTileSize(selected.tileSize);
+        setIsMapSaved(selected.isSaved);
+        setActiveMapId(selected.id);
+        setGenerationError("");
+        setGenerationErrorType("unknown");
+    };
+
+    const handleSelectHistoryMap = (historyId) => {
+        if (generating || isSaving || savingRef.current) return;
+        if (historyId === activeMapId) return;
+        if (!mapHistory.some((item) => item.id === historyId)) return;
+
+        if (generatedMap && !isMapSaved) {
+            setPendingHistoryId(historyId);
+            setShowUnsavedDialog(true);
+            return;
+        }
+        restoreHistoryMap(historyId);
+    };
+
+    const handleDeleteHistoryMap = (historyId) => {
+        if (generating || isSaving || savingRef.current) return;
+        setMapHistory((previous) => previous.filter((item) => item.id !== historyId));
+        if (activeMapId === historyId) setActiveMapId(null);
+        if (pendingHistoryId === historyId) {
+            setPendingHistoryId(null);
+            setShowUnsavedDialog(false);
+        }
+        toast.info("Mapa eliminado del historial temporal.");
+    };
+
+    const handleCancelGeneration = () => {
+        setShowUnsavedDialog(false);
+        setPendingHistoryId(null);
+    };
+
+    const handleConfirmGeneration = () => {
+        if (generating || isSaving || savingRef.current) return;
+        setShowUnsavedDialog(false);
+        if (pendingHistoryId !== null) {
+            const historyId = pendingHistoryId;
+            setPendingHistoryId(null);
+            restoreHistoryMap(historyId);
+            return;
+        }
+        generateMap();
     };
 
     const generateRandomSeed = () => {
@@ -470,11 +852,13 @@ function Dashboard() {
                         </div>
 
                         <Slider
-                            label="TAMAÑO DE TILE (PX)"
+                            label="Escala de visualización"
                             value={tileSize}
                             min={8}
                             max={32}
                             onChange={setTileSize}
+                            suffix=" px"
+                            tooltip="Ajusta el tamaño visual de las celdas del mapa en píxeles. Aumenta el valor para observar más detalles o redúcelo para visualizar una mayor parte del escenario. No modifica las dimensiones ni el contenido del mapa generado."
                         />
 
                     </section>
@@ -492,15 +876,17 @@ function Dashboard() {
                             max={100}
                             suffix="%"
                             readOnly
+                            tooltip="Indicador general de calidad del mapa calculado por el sistema. Permite consultar la evaluación obtenida durante la generación."
                         />
 
                         <Slider
-                            label="COMPRENSIÓN"
-                            value={compression}
+                            label="CONECTIVIDAD"
+                            value={connectivity}
                             min={0}
                             max={100}
                             suffix="%"
                             readOnly
+                            tooltip="Métrica relacionada con la conexión entre las zonas transitables del mapa, según el procedimiento de evaluación implementado."
                         />
 
                         <Slider
@@ -510,6 +896,7 @@ function Dashboard() {
                             max={100}
                             suffix="%"
                             readOnly
+                            tooltip="Indicador relacionado con la disponibilidad de espacios transitables dentro del mapa generado."
                         />
                     </section>
 
@@ -518,31 +905,82 @@ function Dashboard() {
 
                         <button
                             className="generate-button"
-                            onClick={generateMap}
-                            disabled={generating}
+                            onClick={handleGenerateRequest}
+                            disabled={generating || isSaving}
                         >
                             <Sparkles size={15}/>
 
-                            {generating
-                                ? "Generando..."
-                                : "Generar mapa"}
+                            Generar mapa
                         </button>
 
                         <div className="export-buttons">
 
-                            <button onClick={handleSaveMap} disabled={!generatedMap}>
-                                <Save size={14}/>
-                                Guardar
+                            {/* GUARDAR MAPA */}
+                            <button
+                                type="button"
+                                className="export-button save-button"
+                                onClick={handleSaveMap}
+                                disabled={
+                                    !generatedMap ||
+                                    generating ||
+                                    isSaving ||
+                                    isMapSaved
+                                }
+                                title={
+                                    isMapSaved
+                                        ? "Este mapa ya está guardado"
+                                        : isSaving
+                                            ? "Guardando mapa..."
+                                            : "Guardar mapa en Supabase"
+                                }
+                            >
+                                {isSaving ? (
+                                    <LoaderCircle
+                                        size={21}
+                                        strokeWidth={1.8}
+                                        className="save-spinner"
+                                    />
+                                ) : isMapSaved ? (
+                                    <CheckCircle2
+                                        size={21}
+                                        strokeWidth={1.8}
+                                    />
+                                ) : (
+                                    <Save size={21} strokeWidth={1.8} />
+                                )}
+
+                                <span>
+                                    {isSaving
+                                        ? "Guardando"
+                                        : isMapSaved
+                                            ? "Guardado"
+                                            : "Guardar"}
+                                </span>
+
                             </button>
 
-                            <button onClick={handleExportJSON} disabled={!generatedMap}>
-                                <FileJson size={14}/>
-                                JSON
+                            {/* EXPORTAR JSON */}
+                            <button
+                                type="button"
+                                className="export-button json-button"
+                                onClick={handleExportJSON}
+                                disabled={!generatedMap || generating}
+                                title="Descargar mapa en formato JSON"
+                            >
+                                <FileJson size={21} strokeWidth={1.8} />
+                                <span>JSON</span>
                             </button>
 
-                            <button onClick={handleExportPNG} disabled={!generatedMap}>
-                                <Image size={14}/>
-                                PNG
+                            {/* EXPORTAR PNG */}
+                            <button
+                                type="button"
+                                className="export-button png-button"
+                                onClick={handleExportPNG}
+                                disabled={!generatedMap || generating}
+                                title="Descargar imagen del mapa"
+                            >
+                                <Image size={21} strokeWidth={1.8} />
+                                <span>PNG</span>
                             </button>
 
                         </div>
@@ -553,24 +991,78 @@ function Dashboard() {
 
                 {/* WORKSPACE: solo muestra el mapa generado */}
                 <main className="workspace">
-                    {generationError ? (
-                        <div className="empty-workspace">
-                            <X size={44} strokeWidth={1.5}/>
-                            <h2>No fue posible generar el mapa</h2>
-                            <p>{generationError}</p>
-                        </div>
+
+                    {generating ? (
+
+                        /* GENERACIÓN EN PROCESO */
+                        <MapLoader />
+
+                    ) : generationError ? (
+
+                        /* ERROR DE GENERACIÓN */
+                        <GenerationError
+                            type={generationErrorType}
+                            message={generationError}
+                            onRetry={generateMap}
+                            retrying={generating}
+                        />
+
                     ) : generatedMap ? (
-                        <MapMatrixPreview response={generatedMap} mapType={mapType}/>
+
+                        /* MAPA GENERADO */
+                        <div className="map-result-container">
+
+                            <GenerationStatus
+                                hasMap={Boolean(generatedMap)}
+                                hasChanges={hasPendingChanges}
+                            />
+
+                            {/* Historial compacto integrado en la zona del explorador. */}
+                            <div className="map-viewer-history-anchor">
+                                <MapViewer>
+                                    <MapRenderer
+                                        map={getMapMatrix(generatedMap)}
+                                        terrainType={visibleMapType.toLowerCase()}
+                                        tileSize={tileSize}
+                                    />
+                                </MapViewer>
+
+                                <MapHistory
+                                    maps={mapHistory}
+                                    activeMapId={activeMapId}
+                                    onSelect={handleSelectHistoryMap}
+                                    onDelete={handleDeleteHistoryMap}
+                                    disabled={generating || isSaving}
+                                />
+                            </div>
+
+                            <MapLegend
+                                algorithm={visibleAlgorithm}
+                                terrainType={visibleMapType}
+                            />
+
+
+
+                        </div>
+
                     ) : (
+
+                        /* ESTADO INICIAL */
                         <div className="empty-workspace">
-                            <Map size={44} strokeWidth={1.5}/>
+
+                            <Map size={44} strokeWidth={1.5} />
+
                             <h2>Configura y genera tu mapa</h2>
+
                             <p>
                                 Ajusta los parámetros de la izquierda y presiona
                                 <strong> "Generar mapa"</strong> para crear tu mapa procedural.
                             </p>
+
                         </div>
+
                     )}
+
                 </main>
 
             </div>
@@ -655,6 +1147,13 @@ function Dashboard() {
                 </div>
             )}
 
+            <UnsavedMapDialog
+                open={showUnsavedDialog}
+                onCancel={handleCancelGeneration}
+                onConfirm={handleConfirmGeneration}
+                mode={pendingHistoryId !== null ? "restore" : "generate"}
+            />
+
         </div>
     );
 }
@@ -664,7 +1163,6 @@ function Dashboard() {
 /* COMPONENTES AUXILIARES */
 
 /* ----------------------------- */
-
 function Slider({
                     label,
                     value,
@@ -673,13 +1171,32 @@ function Slider({
                     onChange,
                     suffix = "",
                     readOnly = false,
+                    tooltip = null,
                 }) {
     return (
         <div className="slider-group">
 
             <div className="slider-header">
-                <span>{label}</span>
-                <strong>{value}{suffix}</strong>
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                    }}
+                >
+                    <span>{label}</span>
+
+                    {tooltip && (
+                        <MetricTooltip
+                            title={label}
+                            description={tooltip}
+                        />
+                    )}
+                </div>
+
+                <strong>
+                    {value}{suffix}
+                </strong>
             </div>
 
             <input
@@ -694,7 +1211,11 @@ function Slider({
                 }
                 aria-readonly={readOnly}
                 tabIndex={readOnly ? -1 : 0}
-                style={readOnly ? {pointerEvents: "none"} : undefined}
+                style={
+                    readOnly
+                        ? { pointerEvents: "none" }
+                        : undefined
+                }
             />
 
         </div>
@@ -737,65 +1258,6 @@ function Algorithm({
     );
 }
 
-function MapMatrixPreview({response, mapType}) {
-    const matrix =
-        response?.matrix ||
-        response?.map ||
-        response?.map_data?.matrix ||
-        response?.data?.matrix ||
-        response?.result?.matrix;
-
-    if (!Array.isArray(matrix) || !Array.isArray(matrix[0])) {
-        return (
-            <div className="recommendation-message">
-                El backend respondió correctamente, pero la matriz no está en un campo reconocido.
-                Puedes revisar la respuesta JSON debajo para identificar su ubicación.
-            </div>
-        );
-    }
-
-    const rows = matrix.length;
-    const columns = matrix[0].length;
-    const maxPreview = 70;
-    const rowStep = Math.max(1, Math.ceil(rows / maxPreview));
-    const columnStep = Math.max(1, Math.ceil(columns / maxPreview));
-    const preview = matrix
-        .filter((_, rowIndex) => rowIndex % rowStep === 0)
-        .map((row) => row.filter((_, columnIndex) => columnIndex % columnStep === 0));
-
-    return (
-        <div
-            className="map-matrix-preview"
-            style={{
-                display: "grid",
-                gridTemplateColumns: `repeat(${preview[0].length}, minmax(3px, 1fr))`,
-                width: "min(100%, 720px)",
-                aspectRatio: `${columns} / ${rows}`,
-                overflow: "hidden",
-                borderRadius: "10px",
-                marginTop: "18px",
-                background: "#111827",
-            }}
-            aria-label={`Vista previa del mapa de ${columns} por ${rows}`}
-        >
-            {preview.flatMap((row, rowIndex) =>
-                row.map((cell, columnIndex) => (
-                    <span
-                        key={`${rowIndex}-${columnIndex}`}
-                        title={`Valor: ${cell}`}
-                        style={{
-                            background: getCellColor(mapType, Number(cell)),
-                            minWidth: 0,
-                            minHeight: 0,
-                        }}
-                    />
-                ))
-            )}
-        </div>
-    );
-}
-
-
 function toPercent(value) {
     const number = Number(value);
     if (!Number.isFinite(number)) return 0;
@@ -807,76 +1269,148 @@ function toPercent(value) {
 
 function getEvaluationMetrics(response) {
     if (!response) {
-        return {quality: 0, compression: 0, accessibility: 0};
+        return {
+            quality: 0,
+            connectivity: 0,
+            accessibility: 0
+        };
     }
 
     const metrics =
-        response.evaluation ||
         response.metrics ||
+        response.evaluation ||
         response.statistics ||
         response.stats ||
         response.map_metrics ||
         response.result?.metrics ||
         {};
 
-    const qualityValue =
-        metrics.quality ??
-        metrics.quality_score ??
-        response.quality ??
-        response.quality_score;
-
-    const compressionValue =
-        metrics.comprehension ??
-        metrics.compression ??
-        metrics.comprehension_score ??
-        metrics.compression_score ??
-        response.comprehension ??
-        response.compression;
-
-    const accessibilityValue =
-        metrics.accessibility ??
-        metrics.accessibility_score ??
-        metrics.floor_ratio ??
-        response.accessibility ??
-        response.floor_ratio;
-
     return {
-        quality: toPercent(qualityValue),
-        compression: toPercent(compressionValue),
-        accessibility: toPercent(accessibilityValue),
+        quality: toPercent(
+            metrics.quality ??
+            metrics.quality_score ??
+            response.quality
+        ),
+
+        connectivity: toPercent(
+            metrics.connectivity ??
+            response.connectivity
+        ),
+
+        accessibility: toPercent(
+            metrics.accessibility ??
+            metrics.accessibility_score ??
+            metrics.floor_ratio ??
+            response.accessibility
+        )
     };
-}
-
-function getCellColor(mapType, value) {
-    const active = value !== 0;
-
-    if (mapType === "Bosque") {
-        return active ? "#22c55e" : "#123524";
-    }
-
-    if (mapType === "Desierto") {
-        return active ? "#f4c76b" : "#8b5e34";
-    }
-
-    if (mapType === "Ciudad") {
-        return active ? "#cbd5e1" : "#334155";
-    }
-
-    return active ? "#d1d5db" : "#111827";
 }
 
 function getExportColor(mapType, value) {
     const active = value !== 0;
-    if (mapType === "Bosque") return active ? "#22c55e" : "#123524";
-    if (mapType === "Desierto") return active ? "#f4c76b" : "#8b5e34";
-    if (mapType === "Ciudad") return active ? "#cbd5e1" : "#334155";
+    if (mapType === "bosque") return active ? "#22c55e" : "#123524";
+    if (mapType === "desierto") return active ? "#f4c76b" : "#8b5e34";
+    if (mapType === "ciudad") return active ? "#cbd5e1" : "#334155";
     return active ? "#d1d5db" : "#111827";
 }
 
 // Una nueva entrada del historial monta una instancia nueva y restaura su mapa.
 function DashboardPage() {
     const location = useLocation();
-    return <Dashboard key={location.key} />;
+    return <Dashboard key={location.key}/>;
+}
+
+function loadSprite(src) {
+    return new Promise((resolve, reject) => {
+        const image = new window.Image();
+
+        image.onload = () => resolve(image);
+
+        image.onerror = () => {
+            reject(
+                new Error(`No se pudo cargar el sprite: ${src}`)
+            );
+        };
+
+        image.src = src;
+    });
+}
+
+/* ==========================================
+   IDENTIFICAR ERRORES DE GENERACIÓN
+ ========================================== */
+
+function classifyGenerationError(error) {
+    const status = Number(
+        error?.status ??
+        error?.response?.status ??
+        0
+    );
+
+    const message = String(
+        error?.message ?? ""
+    ).toLowerCase();
+
+    const name = String(
+        error?.name ?? ""
+    ).toLowerCase();
+
+    if (
+        name === "aborterror" ||
+        message.includes("timeout") ||
+        message.includes("timed out") ||
+        message.includes("tiempo de espera")
+    ) {
+        return "timeout";
+    }
+
+    if (status === 401 || status === 403) {
+        return "authentication";
+    }
+
+    if (
+        status === 400 ||
+        status === 422
+    ) {
+        return "validation";
+    }
+
+    if (status >= 500) {
+        return "server";
+    }
+
+    if (
+        error instanceof TypeError ||
+        message.includes("failed to fetch") ||
+        message.includes("networkerror") ||
+        message.includes("network error")
+    ) {
+        return "connection";
+    }
+
+    return "unknown";
+}
+
+/* ==========================================
+   CONFIGURACIÓN DE GENERACIÓN
+   ========================================== */
+
+function getGenerationConfig({
+                                 mapType,
+                                 algorithm,
+                                 width,
+                                 height,
+                                 seed,
+                                 complexity,
+                             }) {
+    return {
+        mapType,
+        algorithm,
+        width: Number(width),
+        height: Number(height),
+        seed: seed == null ? "" : String(seed),
+        complexity,
+    };
 }
 
 export default DashboardPage;

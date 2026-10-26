@@ -12,10 +12,13 @@ import MyMaps from "./features/maps/pages/MyMaps";
 import { AuthProvider } from "./features/auth/context/AuthContext";
 import ProtectedRoute from "./features/auth/components/ProtectedRoute";
 
+import { Toaster } from "sonner";
+
 function App() {
   return (
       <AuthProvider>
         <BrowserRouter>
+
           <Routes>
             {/* Rutas públicas */}
             <Route path="/" element={<Login />} />
@@ -32,6 +35,15 @@ function App() {
             {/* Rutas desconocidas */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+
+          {/* Notificaciones globales */}
+          <Toaster
+              position="top-right"
+              theme="dark"
+              richColors
+              closeButton
+          />
+
         </BrowserRouter>
       </AuthProvider>
   );
