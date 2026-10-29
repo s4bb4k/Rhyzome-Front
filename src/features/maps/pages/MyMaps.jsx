@@ -1,5 +1,7 @@
-import {useEffect, useMemo, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import {useNavigate} from "react-router-dom";
+
+import { getTerrainSprite } from "../../../utils/terrainSprites";
 
 import {
     Search,
@@ -11,7 +13,6 @@ import {
     Sun,
     Building2,
     Skull,
-    MoreVertical,
     Grid2X2,
     List,
     ChevronLeft,
@@ -29,6 +30,8 @@ import {
     deleteMap,
 } from "../../../services/mapsStorage";
 
+import { toast } from "sonner";
+
 const biomeIcons = {
     Todos: Map,
     Bosque: Trees,
@@ -36,6 +39,8 @@ const biomeIcons = {
     Ciudad: Building2,
     Mazmorra: Skull,
 };
+
+import "./MyMaps-modal.css";
 
 const PAGE_SIZE = 6;
 
@@ -55,8 +60,51 @@ function MyMaps() {
     const [view, setView] = useState("grid");
     const [sort, setSort] = useState("Más recientes");
     const [page, setPage] = useState(1);
-    const [openMenuId, setOpenMenuId] = useState(null);
     const [deletingId, setDeletingId] = useState(null);
+    const [mapToDelete, setMapToDelete] = useState(null);
+    const deleteDialogRef = useRef(null);
+    const cancelDeleteRef = useRef(null);
+    const previousFocusRef = useRef(null);
+    const deletingIdRef = useRef(null);
+    deletingIdRef.current = deletingId;
+
+    useEffect(() => {
+        if (!mapToDelete) return;
+
+        previousFocusRef.current = document.activeElement;
+        cancelDeleteRef.current?.focus();
+
+        const onKeyDown = (event) => {
+            if (event.key === "Escape") {
+                if (deletingIdRef.current === null) setMapToDelete(null);
+                return;
+            }
+            if (event.key !== "Tab") return;
+
+            const focusable = Array.from(
+                deleteDialogRef.current?.querySelectorAll('button:not(:disabled)') ?? []
+            );
+            if (!focusable.length) {
+                event.preventDefault();
+                return;
+            }
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+
+        document.addEventListener("keydown", onKeyDown);
+        return () => {
+            document.removeEventListener("keydown", onKeyDown);
+            previousFocusRef.current?.focus?.();
+        };
+    }, [mapToDelete]);
 
     useEffect(() => {
         loadMaps();
@@ -160,21 +208,28 @@ function MyMaps() {
         });
     };
 
-    const handleDelete = async (map) => {
-        const confirmed = window.confirm(
-            `¿Deseas eliminar "${map.name}"? Esta acción no se puede deshacer.`
-        );
+    const handleDelete = (map) => {
+        if (deletingId !== null) return;
+        setMapToDelete(map);
+    };
 
-        if (!confirmed) return;
+    const confirmDelete = async () => {
+        if (!mapToDelete || deletingId !== null) return;
+        const map = mapToDelete;
 
         try {
             setDeletingId(map.id);
             await deleteMap(map.id);
             setMaps((current) => current.filter((item) => item.id !== map.id));
-            setOpenMenuId(null);
+            setMapToDelete(null);
+            toast.success("Mapa eliminado correctamente", {
+                description: `"${map.name}" fue eliminado de tus mapas.`,
+            });
         } catch (error) {
             console.error("Error eliminando mapa:", error);
-            window.alert(error?.message || "No fue posible eliminar el mapa.");
+            toast.error("No fue posible eliminar el mapa", {
+                description: error?.message || "Ocurrió un error al intentar eliminar el mapa.",
+            });
         } finally {
             setDeletingId(null);
         }
@@ -424,12 +479,6 @@ function MyMaps() {
                                     key={map.id}
                                     map={map}
                                     onOpen={() => openMap(map)}
-                                    menuOpen={openMenuId === map.id}
-                                    onToggleMenu={() =>
-                                        setOpenMenuId((current) =>
-                                            current === map.id ? null : map.id
-                                        )
-                                    }
                                     onDelete={() => handleDelete(map)}
                                     deleting={deletingId === map.id}
                                 />
@@ -447,12 +496,6 @@ function MyMaps() {
                                     key={map.id}
                                     map={map}
                                     onOpen={() => openMap(map)}
-                                    menuOpen={openMenuId === map.id}
-                                    onToggleMenu={() =>
-                                        setOpenMenuId((current) =>
-                                            current === map.id ? null : map.id
-                                        )
-                                    }
                                     onDelete={() => handleDelete(map)}
                                     deleting={deletingId === map.id}
                                 />
@@ -498,6 +541,67 @@ function MyMaps() {
                     </div>
                 )}
             </main>
+
+            {mapToDelete && (
+                <div
+                    className="delete-modal-overlay"
+                    onMouseDown={(event) => {
+                        if (event.target === event.currentTarget && deletingId === null) {
+                            setMapToDelete(null);
+                        }
+                    }}
+                >
+                    <div
+                        ref={deleteDialogRef}
+                        className="delete-modal"
+                        role="alertdialog"
+                        aria-modal="true"
+                        aria-labelledby="delete-modal-title"
+                        aria-describedby="delete-modal-description"
+                    >
+                        <div className="delete-modal-icon" aria-hidden="true">
+                            <Trash2 size={26} />
+                        </div>
+                        <h2 id="delete-modal-title">Eliminar mapa</h2>
+                        <p id="delete-modal-description">
+                            ¿Estás seguro de que deseas eliminar
+                            <strong> "{mapToDelete.name}"</strong>?
+                        </p>
+                        <p className="delete-modal-warning">
+                            Esta acción no se puede deshacer.
+                        </p>
+                        <div className="delete-modal-actions">
+                            <button
+                                ref={cancelDeleteRef}
+                                type="button"
+                                className="delete-modal-cancel"
+                                disabled={deletingId !== null}
+                                onClick={() => setMapToDelete(null)}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                className="delete-modal-confirm"
+                                disabled={deletingId !== null}
+                                onClick={confirmDelete}
+                            >
+                                {deletingId !== null ? (
+                                    <>
+                                        <RefreshCw size={16} className="delete-loading" />
+                                        Eliminando...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Trash2 size={16} />
+                                        Eliminar mapa
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -505,8 +609,6 @@ function MyMaps() {
 function MapCard({
                      map,
                      onOpen,
-                     menuOpen,
-                     onToggleMenu,
                      onDelete,
                      deleting,
                  }) {
@@ -528,51 +630,60 @@ function MapCard({
             }}
         >
             <div className="map-image">
-                <MapThumbnail matrix={map.matrix} mapType={biome}/>
-
-                <button
-                    className="map-menu"
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        onToggleMenu();
-                    }}
-                    title="Opciones"
-                >
-                    <MoreVertical size={16}/>
-                </button>
-
-                {menuOpen && (
-                    <div className="map-card-menu">
-                        <button
-                            className="map-delete-option"
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                onDelete();
-                            }}
-                            disabled={deleting}
-                        >
-                            <Trash2 size={14}/>
-                            {deleting ? "Eliminando..." : "Eliminar"}
-                        </button>
-                    </div>
-                )}
+                <MapThumbnail
+                    matrix={map.matrix}
+                    mapType={biome}
+                />
             </div>
 
             <div className="map-card-content">
-                <h3>{map.name}</h3>
 
+                {/* Nombre del mapa y botón eliminar */}
+                <div className="map-card-header">
+                    <h3>{map.name}</h3>
+
+                    <button
+                        type="button"
+                        className="map-delete-button map-delete-button-card"
+                        title="Eliminar mapa"
+                        aria-label={`Eliminar ${map.name}`}
+                        disabled={deleting}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onDelete();
+                        }}
+                        onKeyDown={(event) => {
+                            event.stopPropagation();
+                        }}
+                    >
+                        {deleting ? (
+                            <RefreshCw
+                                size={17}
+                                className="delete-loading"
+                            />
+                        ) : (
+                            <Trash2 size={17} />
+                        )}
+                    </button>
+                </div>
+
+                {/* Tipo de terreno */}
                 <div className="map-biome">
-                    <Icon size={13}/>
+                    <Icon size={13} />
                     {biome}
                 </div>
 
+                {/* Dimensiones */}
                 <p>
                     {map.width}x{map.height} · {map.tile_size}px
                 </p>
 
+                {/* Semilla */}
                 <p>Semilla: {map.seed}</p>
 
+                {/* Fecha de creación */}
                 <small>{formatDate(map.created_at)}</small>
+
             </div>
         </article>
     );
@@ -581,8 +692,6 @@ function MapCard({
 function MapListItem({
                          map,
                          onOpen,
-                         menuOpen,
-                         onToggleMenu,
                          onDelete,
                          deleting,
                      }) {
@@ -628,39 +737,40 @@ function MapListItem({
 
             <div className="map-list-menu-wrapper">
                 <button
+                    type="button"
+                    className="map-delete-button map-delete-button-list"
+                    title="Eliminar mapa"
+                    aria-label={`Eliminar ${map.name}`}
+                    disabled={deleting}
                     onClick={(event) => {
                         event.stopPropagation();
-                        onToggleMenu();
+                        onDelete();
+                    }}
+                    onKeyDown={(event) => {
+                        event.stopPropagation();
                     }}
                 >
-                    <MoreVertical size={16}/>
+                    {deleting ? (
+                        <RefreshCw size={17} className="delete-loading" />
+                    ) : (
+                        <Trash2 size={17} />
+                    )}
                 </button>
-
-                {menuOpen && (
-                    <div className="map-card-menu">
-                        <button
-                            className="map-delete-option"
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                onDelete();
-                            }}
-                            disabled={deleting}
-                        >
-                            <Trash2 size={14}/>
-                            {deleting ? "Eliminando..." : "Eliminar"}
-                        </button>
-                    </div>
-                )}
             </div>
         </article>
     );
 }
 
-function MapThumbnail({matrix, mapType}) {
-    if (!Array.isArray(matrix) || !Array.isArray(matrix[0])) {
+function MapThumbnail({ matrix, mapType }) {
+    if (
+        !Array.isArray(matrix) ||
+        matrix.length === 0 ||
+        !Array.isArray(matrix[0]) ||
+        matrix[0].length === 0
+    ) {
         return (
             <div className="map-thumbnail-empty">
-                <Map size={30}/>
+                <Map size={30} />
                 <span>Sin vista previa</span>
             </div>
         );
@@ -668,41 +778,96 @@ function MapThumbnail({matrix, mapType}) {
 
     const rows = matrix.length;
     const columns = matrix[0].length;
+
+    // Limitar la cantidad de celdas para las miniaturas
     const maxPreview = 55;
 
-    const rowStep = Math.max(1, Math.ceil(rows / maxPreview));
-    const columnStep = Math.max(1, Math.ceil(columns / maxPreview));
+    const rowStep = Math.max(
+        1,
+        Math.ceil(rows / maxPreview)
+    );
+
+    const columnStep = Math.max(
+        1,
+        Math.ceil(columns / maxPreview)
+    );
 
     const preview = matrix
         .filter((_, rowIndex) => rowIndex % rowStep === 0)
         .map((row) =>
-            row.filter((_, columnIndex) => columnIndex % columnStep === 0)
+            row.filter(
+                (_, columnIndex) =>
+                    columnIndex % columnStep === 0
+            )
         );
+
+    const normalizedType = String(
+        mapType ?? ""
+    ).toLowerCase();
 
     return (
         <div
             className="map-thumbnail"
             style={{
                 display: "grid",
-                gridTemplateColumns: `repeat(${preview[0].length}, 1fr)`,
-                gridTemplateRows: `repeat(${preview.length}, 1fr)`,
+
+                gridTemplateColumns:
+                    `repeat(${preview[0].length}, minmax(0, 1fr))`,
+
+                gridTemplateRows:
+                    `repeat(${preview.length}, minmax(0, 1fr))`,
+
                 width: "100%",
                 height: "100%",
+
                 overflow: "hidden",
+
+                backgroundColor: "#101820",
             }}
             aria-label={`Vista previa de ${columns} por ${rows}`}
         >
             {preview.flatMap((row, y) =>
-                row.map((cell, x) => (
-                    <span
-                        key={`${y}-${x}`}
-                        style={{
-                            background: getMapColor(mapType, Number(cell)),
-                            minWidth: 0,
-                            minHeight: 0,
-                        }}
-                    />
-                ))
+                row.map((cell, x) => {
+                    const cellValue = Number(cell);
+
+                    const sprite = getTerrainSprite(
+                        normalizedType,
+                        cellValue
+                    );
+
+                    const isDungeon =
+                        normalizedType === "mazmorra";
+
+                    return (
+                        <span
+                            key={`${y}-${x}`}
+                            style={{
+                                minWidth: 0,
+                                minHeight: 0,
+
+                                backgroundColor: getMapColor(
+                                    normalizedType,
+                                    cellValue
+                                ),
+
+                                backgroundImage: sprite
+                                    ? `url("${sprite}")`
+                                    : "none",
+
+                                backgroundSize: "100% 100%",
+                                backgroundRepeat: "no-repeat",
+
+                                imageRendering: "pixelated",
+
+                                filter: isDungeon
+                                    ? cellValue === 0
+                                        ? "brightness(0.35)"
+                                        : "brightness(1.15)"
+                                    : "none",
+                            }}
+                        />
+                    );
+                })
             )}
         </div>
     );
