@@ -8,10 +8,10 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest",
-    "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "test:report": "vitest run --coverage --reporter=default --reporter=junit --outputFile.junit=reports/junit.xml"
+    "test": "vitest --config vite.config.js",
+    "test:run": "vitest run --config vite.config.js",
+    "test:coverage": "vitest run --config vite.config.js --coverage",
+    "test:report": "vitest run --config vite.config.js --coverage --reporter=default --reporter=junit --outputFile.junit=reports/junit.xml"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.2",
