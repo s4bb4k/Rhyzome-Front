@@ -1,32 +1,65 @@
 name: Rhyzome Frontend - CI
+
 on:
   push:
     branches: [develop, desarrollo, release, master]
   pull_request:
+
+permissions:
+  contents: read
+
 jobs:
   tests:
+    name: Tests, coverage and build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      VITE_API_BASE_URL: https://example.test
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_ANON_KEY: dummy-test-key
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-      - run: npm ci
-      - run: npm run test:report
-        env:
-          VITE_API_BASE_URL: https://example.test
-          VITE_SUPABASE_URL: https://example.supabase.co
-          VITE_SUPABASE_ANON_KEY: dummy-test-key
-      - run: npm run build
-        env:
-          VITE_API_BASE_URL: https://example.test
-          VITE_SUPABASE_URL: https://example.supabase.co
-          VITE_SUPABASE_ANON_KEY: dummy-test-key
-      - uses: actions/upload-artifact@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Diagnose test configuration
+        run: |
+          echo "=== Branch and commit ==="
+          echo "Ref: $GITHUB_REF"
+          git rev-parse HEAD
+
+          echo "=== Vitest configuration ==="
+          cat vite.config.js
+
+          echo "=== Test files tracked by Git ==="
+          git ls-files 'test/**' 'tests/**'
+
+          echo "=== Tests discovered by Vitest ==="
+          npx vitest list
+
+      - name: Run tests and generate coverage
+        run: npm run test:report
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Upload test and coverage reports
         if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: frontend-test-reports
+          name: frontend-test-reports-${{ github.run_id }}
           path: |
-            reports/
+            reports/junit.xml
             coverage/
+          if-no-files-found: warn
+          retention-days: 14
