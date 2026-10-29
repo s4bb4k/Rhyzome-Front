@@ -25,3 +25,30 @@ dist-ssr
 
 .env
 .env.local
+.env.test
+.env.example
+
+# ========================================
+# TESTING - VITEST
+# ========================================
+
+# Reportes de cobertura
+coverage/
+.nyc_output/
+
+# Reportes de ejecución de pruebas
+reports/
+test-results/
+
+# Archivos de cobertura
+*.lcov
+coverage-final.json
+coverage-summary.json
+
+# Reportes JUnit
+junit.xml
+test-results.xml
+
+# Cache de pruebas
+.vitest/
+node_modules/.vitest/
