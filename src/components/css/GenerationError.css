@@ -1,0 +1,208 @@
+/* ==========================================
+   RHYZOME - GENERATION ERROR
+   ========================================== */
+
+.generation-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    width: 100%;
+    max-width: 480px;
+
+    margin: auto;
+    padding: 36px 28px;
+
+    box-sizing: border-box;
+
+    background: #111827;
+
+    border: 1px solid #374151;
+    border-radius: 16px;
+
+    text-align: center;
+
+    box-shadow:
+            0 15px 40px rgba(0, 0, 0, 0.18);
+}
+
+/* ==========================================
+   ICONO
+   ========================================== */
+
+.generation-error-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 68px;
+    height: 68px;
+
+    margin-bottom: 20px;
+
+    background: rgba(239, 68, 68, 0.1);
+
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 50%;
+
+    color: #f87171;
+}
+
+/* ==========================================
+   TÍTULO
+   ========================================== */
+
+.generation-error-title {
+    margin: 0 0 12px;
+
+    color: #f1f5f9;
+
+    font-size: 20px;
+    font-weight: 700;
+
+    line-height: 1.4;
+}
+
+/* ==========================================
+   DESCRIPCIÓN
+   ========================================== */
+
+.generation-error-description {
+    margin: 0;
+
+    color: #94a3b8;
+
+    font-size: 13px;
+
+    line-height: 1.7;
+}
+
+/* ==========================================
+   DETALLE ADICIONAL
+   ========================================== */
+
+.generation-error-detail {
+    width: 100%;
+
+    margin-top: 18px;
+    padding: 12px;
+
+    box-sizing: border-box;
+
+    background: rgba(239, 68, 68, 0.06);
+
+    border: 1px solid rgba(239, 68, 68, 0.12);
+    border-radius: 8px;
+
+    color: #fca5a5;
+
+    font-size: 12px;
+    line-height: 1.6;
+
+    overflow-wrap: anywhere;
+}
+
+/* ==========================================
+   BOTÓN REINTENTAR
+   ========================================== */
+
+.generation-error-retry {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 10px;
+
+    min-height: 42px;
+
+    margin-top: 24px;
+    padding: 11px 18px;
+
+    background: #059669;
+
+    border: 1px solid #10b981;
+    border-radius: 9px;
+
+    color: #ffffff;
+
+    font-size: 13px;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition:
+            background-color 0.2s ease,
+            transform 0.2s ease,
+            box-shadow 0.2s ease;
+}
+
+.generation-error-retry:hover:not(:disabled) {
+    background: #047857;
+
+    transform: translateY(-2px);
+
+    box-shadow:
+            0 5px 18px rgba(16, 185, 129, 0.2);
+}
+
+.generation-error-retry:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.generation-error-retry:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.generation-error-retry:focus-visible {
+    outline: 2px solid #6ee7b7;
+    outline-offset: 3px;
+}
+
+/* ==========================================
+   ANIMACIÓN DE REINTENTO
+   ========================================== */
+
+.generation-error-spinner {
+    animation: generation-error-spin 1s linear infinite;
+}
+
+@keyframes generation-error-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ==========================================
+   RESPONSIVE
+   ========================================== */
+
+@media (max-width: 600px) {
+    .generation-error {
+        padding: 28px 18px;
+    }
+
+    .generation-error-title {
+        font-size: 18px;
+    }
+
+    .generation-error-icon {
+        width: 58px;
+        height: 58px;
+    }
+}
+
+/* ==========================================
+   ACCESIBILIDAD
+   ========================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    .generation-error-spinner {
+        animation: none;
+    }
+
+    .generation-error-retry {
+        transition: none;
+    }
+}

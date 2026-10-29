@@ -1,0 +1,205 @@
+/* ==========================================
+   RHYZOME - MAP VIEWER
+   ========================================== */
+
+.map-viewer {
+    display: flex;
+    flex-direction: column;
+
+    width: 100%;
+    min-width: 0;
+
+    overflow: hidden;
+
+    background: #0f1722;
+
+    border: 1px solid #253244;
+    border-radius: 12px;
+}
+
+/* ==========================================
+   BARRA DE HERRAMIENTAS
+   ========================================== */
+
+.map-viewer-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 12px;
+
+    padding: 12px 16px;
+
+    background: #111b29;
+
+    border-bottom: 1px solid #253244;
+}
+
+.map-viewer-label {
+    display: flex;
+    align-items: center;
+
+    gap: 8px;
+
+    color: #34d399;
+
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.map-viewer-actions {
+    display: flex;
+    align-items: center;
+
+    gap: 8px;
+}
+
+/* ==========================================
+   BOTONES
+   ========================================== */
+
+.map-viewer-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 34px;
+    height: 34px;
+
+    padding: 0;
+
+    background: #1b293a;
+
+    border: 1px solid #334155;
+    border-radius: 8px;
+
+    color: #cbd5e1;
+
+    cursor: pointer;
+
+    transition:
+            background-color 0.2s ease,
+            border-color 0.2s ease,
+            color 0.2s ease;
+}
+
+.map-viewer-button:hover {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: #10b981;
+
+    color: #34d399;
+}
+
+.map-viewer-button:focus-visible {
+    outline: 2px solid #34d399;
+    outline-offset: 2px;
+}
+
+/* ==========================================
+   ÁREA DEL MAPA
+   ========================================== */
+
+.map-viewer-viewport {
+    width: 100%;
+    min-width: 0;
+
+    max-height: 650px;
+
+    overflow: auto;
+
+    cursor: grab;
+
+    scrollbar-width: thin;
+    scrollbar-color: #475569 #0f1722;
+}
+
+.map-viewer-viewport.is-dragging {
+    cursor: grabbing;
+    user-select: none;
+}
+
+/* ==========================================
+   CENTRADO DEL MAPA
+   ========================================== */
+
+.map-viewer-content {
+    display: flex;
+    align-items: flex-start;
+    justify-content: safe center;
+
+    width: max-content;
+    min-width: 100%;
+
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* ==========================================
+   PIE DEL VISOR
+   ========================================== */
+
+.map-viewer-footer {
+    padding: 10px 16px;
+
+    background: #111b29;
+
+    border-top: 1px solid #253244;
+
+    color: #64748b;
+
+    font-size: 11px;
+    text-align: center;
+}
+
+/* ==========================================
+   PANTALLA COMPLETA
+   ========================================== */
+
+.map-viewer:fullscreen {
+    width: 100%;
+    height: 100%;
+
+    background: #080d15;
+
+    border: none;
+    border-radius: 0;
+}
+
+.map-viewer:fullscreen .map-viewer-viewport {
+    flex: 1;
+
+    min-height: 0;
+    max-height: none;
+}
+
+.map-viewer:fullscreen .map-viewer-content {
+    min-height: 100%;
+}
+
+/* ==========================================
+   RESPONSIVE
+   ========================================== */
+
+@media (max-width: 650px) {
+    .map-viewer-toolbar {
+        padding: 10px 12px;
+    }
+
+    .map-viewer-label {
+        font-size: 11px;
+    }
+
+    .map-viewer-viewport {
+        max-height: 500px;
+    }
+
+    .map-viewer-content {
+        padding: 10px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .map-viewer-button {
+        transition: none;
+    }
+}

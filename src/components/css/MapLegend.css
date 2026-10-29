@@ -1,0 +1,217 @@
+/* ==========================================
+   RHYZOME - MAP LEGEND
+   ========================================== */
+
+.map-legend {
+    width: 100%;
+    box-sizing: border-box;
+
+    margin-top: 18px;
+    padding: 18px;
+
+    background: #111827;
+
+    border: 1px solid #253244;
+    border-radius: 12px;
+
+    color: #e2e8f0;
+}
+
+/* ==========================================
+   ENCABEZADO
+   ========================================== */
+
+.map-legend-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 12px;
+
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+
+    border-bottom: 1px solid #253244;
+}
+
+.map-legend-title {
+    display: flex;
+    align-items: center;
+
+    gap: 9px;
+
+    color: #34d399;
+}
+
+.map-legend-title h3 {
+    margin: 0;
+
+    font-size: 13px;
+    font-weight: 700;
+
+    letter-spacing: 0.4px;
+}
+
+.map-legend-count {
+    padding: 5px 9px;
+
+    background: rgba(16, 185, 129, 0.08);
+
+    border: 1px solid rgba(16, 185, 129, 0.15);
+    border-radius: 6px;
+
+    color: #6ee7b7;
+
+    font-size: 11px;
+    font-weight: 600;
+
+    white-space: nowrap;
+}
+
+/* ==========================================
+   CONTENEDOR DE ELEMENTOS
+   ========================================== */
+
+.map-legend-items {
+    display: grid;
+
+    grid-template-columns: repeat(
+        2,
+        minmax(0, 1fr)
+    );
+
+    gap: 12px;
+}
+
+/* ==========================================
+   ELEMENTO INDIVIDUAL
+   ========================================== */
+
+.map-legend-item {
+    display: flex;
+    align-items: center;
+
+    gap: 12px;
+
+    min-width: 0;
+
+    padding: 12px;
+
+    background: #172131;
+
+    border: 1px solid #273548;
+    border-radius: 9px;
+
+    transition:
+            background-color 0.2s ease,
+            border-color 0.2s ease;
+}
+
+.map-legend-item:hover {
+    background: #1c293b;
+    border-color: #36516a;
+}
+
+/* ==========================================
+   INDICADOR DE TERRENO
+   ========================================== */
+
+.map-legend-color {
+    display: block;
+
+    flex-shrink: 0;
+
+    width: 28px;
+    height: 28px;
+
+    border: 2px solid rgba(255, 255, 255, 0.12);
+    border-radius: 7px;
+
+    box-shadow:
+            inset 0 1px 2px rgba(255, 255, 255, 0.08),
+            0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* ==========================================
+   INFORMACIÓN DEL TERRENO
+   ========================================== */
+
+.map-legend-item-info {
+    display: flex;
+    flex-direction: column;
+
+    gap: 4px;
+
+    min-width: 0;
+}
+
+.map-legend-item-label {
+    color: #f1f5f9;
+
+    font-size: 12px;
+    font-weight: 600;
+
+    line-height: 1.4;
+}
+
+.map-legend-item-description {
+    color: #94a3b8;
+
+    font-size: 11px;
+    font-weight: 400;
+
+    line-height: 1.5;
+}
+
+/* ==========================================
+   RESPONSIVE
+   ========================================== */
+
+@media (max-width: 650px) {
+    .map-legend {
+        padding: 14px;
+    }
+
+    .map-legend-items {
+        grid-template-columns: 1fr;
+    }
+
+    .map-legend-item {
+        padding: 11px;
+    }
+
+    .map-legend-header {
+        gap: 8px;
+    }
+}
+
+/* ==========================================
+   ACCESIBILIDAD
+   ========================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    .map-legend-item {
+        transition: none;
+    }
+}
+
+/* CONTENEDOR DEL MAPA Y SU LEYENDA */
+
+.map-result-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    width: 100%;
+    min-width: 0;
+
+    gap: 16px;
+}
+
+/* LEYENDA DEBAJO DEL MAPA */
+
+.map-result-container .map-legend {
+    width: 100%;
+    max-width: 900px;
+    box-sizing: border-box;
+}
