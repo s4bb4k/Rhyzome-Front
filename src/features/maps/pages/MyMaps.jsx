@@ -1,7 +1,7 @@
 import {useEffect, useMemo, useRef, useState} from "react";
 import {useNavigate} from "react-router-dom";
 
-import { getTerrainSprite } from "../../../utils/terrainSprites";
+import {getTerrainSprite} from "../../../utils/terrainSprites";
 
 import {
     Search,
@@ -9,6 +9,7 @@ import {
     ChevronUp,
     ChevronDown,
     Plus,
+    BookOpen,
     Trees,
     Sun,
     Building2,
@@ -30,7 +31,7 @@ import {
     deleteMap,
 } from "../../../services/mapsStorage";
 
-import { toast } from "sonner";
+import {toast} from "sonner";
 
 const biomeIcons = {
     Todos: Map,
@@ -41,6 +42,7 @@ const biomeIcons = {
 };
 
 import "./MyMaps-modal.css";
+import "./MyMapsRedesign.css";
 
 const PAGE_SIZE = 6;
 
@@ -54,9 +56,25 @@ function MyMaps() {
     const [search, setSearch] = useState("");
     const [biome, setBiome] = useState("Todos");
     const [dateFilter, setDateFilter] = useState("Cualquier fecha");
-    const [width, setWidth] = useState(10);
-    const [seed, setSeed] = useState("");
     const [showFilters, setShowFilters] = useState(true);
+    const [hasSearched, setHasSearched] = useState(false);
+    // Los controles son borradores; la galería solo usa los filtros aplicados.
+    const [appliedFilters, setAppliedFilters] = useState({
+        search: "", biome: "Todos", dateFilter: "Cualquier fecha",
+    });
+    const applyFilters = () => {
+        setAppliedFilters({search: search.trim(), biome, dateFilter});
+        setHasSearched(true);
+        setPage(1);
+    };
+    const clearFilters = () => {
+        setSearch("");
+        setBiome("Todos");
+        setDateFilter("Cualquier fecha");
+        setAppliedFilters({search: "", biome: "Todos", dateFilter: "Cualquier fecha"});
+        setHasSearched(false);
+        setPage(1);
+    };
     const [view, setView] = useState("grid");
     const [sort, setSort] = useState("Más recientes");
     const [page, setPage] = useState(1);
@@ -115,7 +133,7 @@ function MyMaps() {
             setLoading(true);
             setLoadError("");
             const data = await getMyMaps();
-            setMaps(data);
+            setMaps(data.filter((map) => Boolean(map.generation_data?.layers)));
         } catch (error) {
             console.error("Error cargando mapas:", error);
             setLoadError(error?.message || "No fue posible cargar los mapas.");
@@ -126,43 +144,39 @@ function MyMaps() {
 
     const filteredMaps = useMemo(() => {
         const now = new Date();
+        const {search: activeSearch, biome: activeBiome, dateFilter: activeDateFilter} = appliedFilters;
 
         const result = maps.filter((map) => {
             const name = String(map.name ?? "");
             const type = normalizeMapType(map.map_type);
 
-            const searchMatch = name.toLowerCase().includes(search.toLowerCase());
+            const searchMatch = name.toLowerCase().includes(activeSearch.toLowerCase());
 
             const biomeMatch =
-                biome === "Todos" ||
-                type.toLowerCase() === biome.toLowerCase();
-
-            const widthMatch = Number(map.width ?? 0) >= width;
-
-            const seedMatch =
-                !seed ||
-                String(map.seed ?? "").includes(seed);
+                activeBiome === "Todos" ||
+                type.toLowerCase() === activeBiome.toLowerCase();
 
             const createdAt = map.created_at ? new Date(map.created_at) : null;
             let dateMatch = true;
 
-            if (dateFilter !== "Cualquier fecha" && createdAt && !Number.isNaN(createdAt.getTime())) {
+            if (activeDateFilter !== "Cualquier fecha") {
+                if (!createdAt || Number.isNaN(createdAt.getTime())) return false;
                 const diffMs = now.getTime() - createdAt.getTime();
                 const diffDays = diffMs / (1000 * 60 * 60 * 24);
 
-                if (dateFilter === "Hoy") {
+                if (activeDateFilter === "Hoy") {
                     dateMatch =
                         createdAt.getFullYear() === now.getFullYear() &&
                         createdAt.getMonth() === now.getMonth() &&
                         createdAt.getDate() === now.getDate();
-                } else if (dateFilter === "Últimos 7 días") {
+                } else if (activeDateFilter === "Últimos 7 días") {
                     dateMatch = diffDays >= 0 && diffDays <= 7;
-                } else if (dateFilter === "Últimos 30 días") {
+                } else if (activeDateFilter === "Últimos 30 días") {
                     dateMatch = diffDays >= 0 && diffDays <= 30;
                 }
             }
 
-            return searchMatch && biomeMatch && widthMatch && seedMatch && dateMatch;
+            return searchMatch && biomeMatch && dateMatch;
         });
 
         return [...result].sort((a, b) => {
@@ -180,11 +194,11 @@ function MyMaps() {
 
             return new Date(b.created_at ?? 0) - new Date(a.created_at ?? 0);
         });
-    }, [maps, search, biome, width, seed, dateFilter, sort]);
+    }, [maps, appliedFilters, sort]);
 
     useEffect(() => {
         setPage(1);
-    }, [search, biome, width, seed, dateFilter, sort]);
+    }, [appliedFilters, sort]);
 
     const totalPages = Math.max(1, Math.ceil(filteredMaps.length / PAGE_SIZE));
     const safePage = Math.min(page, totalPages);
@@ -238,37 +252,28 @@ function MyMaps() {
     return (
         <div className="maps-page">
             <header className="maps-header">
-                <div className="maps-brand">
-                    <div className="maps-brand-icon">
-                        <Map size={17}/>
-                    </div>
-                    <strong>Rhizome</strong>
+                <div className="maps-brand" aria-label="Rhyzome">
+                    <div className="maps-brand-icon"><Map size={17}/></div>
+                    <strong>RHYZOME</strong>
                 </div>
-
-                <div className="maps-header-actions">
-                    <button className="new-map-button" onClick={createMap}>
-                        <Plus size={16}/>
-                        Nuevo mapa
+                <nav className="maps-header-actions" aria-label="Navegación principal">
+                    <button type="button" className="maps-nav-button" onClick={createMap}>
+                        <Map size={18}/> Generador
                     </button>
-
-                    <button
-                        className="logout-button"
-                        onClick={logout}
-                        title="Cerrar sesión"
-                    >
-                        <LogOut size={15}/>
+                    <span className="maps-nav-button maps-nav-current" aria-current="page">
+                        <Grid2X2 size={18}/> Mis mapas
+                    </span>
+                    <button type="button" className="logout-button" onClick={logout}
+                            title="Cerrar sesión" aria-label="Cerrar sesión">
+                        <LogOut size={18}/>
                     </button>
-                </div>
+                </nav>
             </header>
 
             <main className="maps-content">
                 <div className="maps-title">
                     <h1>Mis Mapas</h1>
-                    <p>
-                        {loading
-                            ? "Cargando mapas..."
-                            : `${filteredMaps.length} mapas encontrados`}
-                    </p>
+                    <p>Gestiona y revisa los mapas que has generado en Rhyzome.</p>
                 </div>
 
                 <section className="maps-filter-box">
@@ -281,6 +286,9 @@ function MyMaps() {
                                 placeholder="Buscar por nombre de mapa..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") applyFilters();
+                                }}
                             />
 
                             {search && (
@@ -362,33 +370,16 @@ function MyMaps() {
                                 </div>
                             </div>
 
-                            <div className="filter-group width-filter">
-                                <div className="filter-label-row">
-                                    <label>ANCHO DEL MAPA</label>
-                                    <strong>{width}-150</strong>
-                                </div>
-
-                                <input
-                                    type="range"
-                                    min="10"
-                                    max="150"
-                                    value={width}
-                                    onChange={(e) => setWidth(Number(e.target.value))}
-                                />
-                            </div>
-
-                            <div className="filter-group seed-filter">
-                                <label>SEMILLA</label>
-
-                                <input
-                                    type="text"
-                                    placeholder="Ej. 42869"
-                                    value={seed}
-                                    onChange={(e) => setSeed(e.target.value)}
-                                />
-                            </div>
                         </div>
                     )}
+                    <div className="maps-filter-actions">
+                        <button type="button" className="maps-apply-search" onClick={applyFilters}>
+                            <Search size={16}/> Buscar mapas
+                        </button>
+                        <button type="button" className="maps-reset-search" onClick={clearFilters}>
+                            <X size={15}/> Limpiar filtros
+                        </button>
+                    </div>
                 </section>
 
                 {loadError && (
@@ -405,9 +396,20 @@ function MyMaps() {
                     </div>
                 )}
 
-                {!loadError && filteredMaps.length > 0 && (
+                {!loading && !loadError && !hasSearched && (
+                    <div className="maps-empty" role="status">
+                        <div className="empty-icon"><Search size={42}/></div>
+                        <h2>Busca tus mapas guardados</h2>
+                        <p>Selecciona un bioma, una fecha o escribe un nombre y presiona Buscar mapas. Si no eliges
+                            filtros, se mostrarán todos los mapas.</p>
+                    </div>
+                )}
+
+                {hasSearched && !loadError && filteredMaps.length > 0 && (
                     <div className="results-toolbar">
-                        <div/>
+                        <span className="maps-results-count">
+                            {loading ? "Cargando mapas..." : `${filteredMaps.length} mapas encontrados`}
+                        </span>
 
                         <div className="results-actions">
                             <span>Ordenar por:</span>
@@ -442,25 +444,25 @@ function MyMaps() {
                     </div>
                 )}
 
-                {!loading && !loadError && filteredMaps.length === 0 && (
+                {hasSearched && !loading && !loadError && filteredMaps.length === 0 && (
                     <div className="maps-empty">
                         <div className="empty-icon">
                             <Map size={42}/>
                         </div>
 
                         <h2>
-                            {hasActiveFilters(search, biome, dateFilter, width, seed)
+                            {hasActiveFilters(appliedFilters.search, appliedFilters.biome, appliedFilters.dateFilter)
                                 ? "No se encontraron mapas"
                                 : "Aún no tienes mapas"}
                         </h2>
 
                         <p>
-                            {hasActiveFilters(search, biome, dateFilter, width, seed)
+                            {hasActiveFilters(appliedFilters.search, appliedFilters.biome, appliedFilters.dateFilter)
                                 ? "Intenta cambiar los filtros de búsqueda."
                                 : "¡Genera y guarda tu primer mapa!"}
                         </p>
 
-                        {!hasActiveFilters(search, biome, dateFilter, width, seed) && (
+                        {!hasActiveFilters(appliedFilters.search, appliedFilters.biome, appliedFilters.dateFilter) && (
                             <button className="create-first-map" onClick={createMap}>
                                 <Plus size={16}/>
                                 Crear primer mapa
@@ -469,7 +471,7 @@ function MyMaps() {
                     </div>
                 )}
 
-                {!loading &&
+                {hasSearched && !loading &&
                     !loadError &&
                     visibleMaps.length > 0 &&
                     view === "grid" && (
@@ -486,7 +488,7 @@ function MyMaps() {
                         </div>
                     )}
 
-                {!loading &&
+                {hasSearched && !loading &&
                     !loadError &&
                     visibleMaps.length > 0 &&
                     view === "list" && (
@@ -503,7 +505,7 @@ function MyMaps() {
                         </div>
                     )}
 
-                {!loading && !loadError && filteredMaps.length > 0 && (
+                {hasSearched && !loading && !loadError && filteredMaps.length > 0 && (
                     <div className="maps-pagination">
                         <button
                             disabled={safePage <= 1}
@@ -542,6 +544,16 @@ function MyMaps() {
                 )}
             </main>
 
+            <footer className="dashboard-footer rh-footer maps-footer">
+                <div className="rh-footer-identity">
+                    <Map size={17} aria-hidden="true"/>
+                    <strong>RHYZOME</strong>
+                    <span className="rh-footer-divider" aria-hidden="true"/>
+                    <span>Generador procedural de escenarios 2D</span>
+                </div>
+                <span className="rh-footer-copyright">© 2026 · Proyecto académico</span>
+            </footer>
+
             {mapToDelete && (
                 <div
                     className="delete-modal-overlay"
@@ -560,7 +572,7 @@ function MyMaps() {
                         aria-describedby="delete-modal-description"
                     >
                         <div className="delete-modal-icon" aria-hidden="true">
-                            <Trash2 size={26} />
+                            <Trash2 size={26}/>
                         </div>
                         <h2 id="delete-modal-title">Eliminar mapa</h2>
                         <p id="delete-modal-description">
@@ -588,12 +600,12 @@ function MyMaps() {
                             >
                                 {deletingId !== null ? (
                                     <>
-                                        <RefreshCw size={16} className="delete-loading" />
+                                        <RefreshCw size={16} className="delete-loading"/>
                                         Eliminando...
                                     </>
                                 ) : (
                                     <>
-                                        <Trash2 size={16} />
+                                        <Trash2 size={16}/>
                                         Eliminar mapa
                                     </>
                                 )}
@@ -662,14 +674,14 @@ function MapCard({
                                 className="delete-loading"
                             />
                         ) : (
-                            <Trash2 size={17} />
+                            <Trash2 size={17}/>
                         )}
                     </button>
                 </div>
 
                 {/* Tipo de terreno */}
                 <div className="map-biome">
-                    <Icon size={13} />
+                    <Icon size={13}/>
                     {biome}
                 </div>
 
@@ -751,9 +763,9 @@ function MapListItem({
                     }}
                 >
                     {deleting ? (
-                        <RefreshCw size={17} className="delete-loading" />
+                        <RefreshCw size={17} className="delete-loading"/>
                     ) : (
-                        <Trash2 size={17} />
+                        <Trash2 size={17}/>
                     )}
                 </button>
             </div>
@@ -761,7 +773,7 @@ function MapListItem({
     );
 }
 
-function MapThumbnail({ matrix, mapType }) {
+function MapThumbnail({matrix, mapType}) {
     if (
         !Array.isArray(matrix) ||
         matrix.length === 0 ||
@@ -770,7 +782,7 @@ function MapThumbnail({ matrix, mapType }) {
     ) {
         return (
             <div className="map-thumbnail-empty">
-                <Map size={30} />
+                <Map size={30}/>
                 <span>Sin vista previa</span>
             </div>
         );
@@ -921,14 +933,13 @@ function formatDate(value) {
     }).format(date);
 }
 
-function hasActiveFilters(search, biome, dateFilter, width, seed) {
+function hasActiveFilters(search, biome, dateFilter) {
     return (
         Boolean(search) ||
         biome !== "Todos" ||
-        dateFilter !== "Cualquier fecha" ||
-        width !== 10 ||
-        Boolean(seed)
+        dateFilter !== "Cualquier fecha"
     );
 }
 
 export default MyMaps;
+
