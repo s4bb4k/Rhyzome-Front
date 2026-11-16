@@ -1,0 +1,259 @@
+/* Rhyzome: ajustes responsive transversales, sin alterar la lógica de generación. */
+.dashboard, .maps-page {
+    min-width: 0;
+}
+
+.dashboard-content, .rh-dashboard-v2 .workspace, .maps-content {
+    min-width: 0;
+}
+
+.maps-page .maps-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+}
+
+.maps-page .map-card, .maps-page .map-card-content {
+    min-width: 0;
+}
+
+.maps-page .map-card h3, .maps-page .map-list-info h3 {
+    overflow-wrap: anywhere;
+}
+
+.maps-page .map-list-item {
+    grid-template-columns: minmax(150px, 2fr) minmax(65px, .6fr) minmax(55px, .5fr) minmax(110px, 1fr) minmax(135px, 1fr) 38px;
+    gap: 12px;
+}
+
+.maps-page .map-list-item > *, .maps-page .maps-search, .maps-page .maps-search input {
+    min-width: 0;
+}
+
+.maps-page .map-list-item > div {
+    overflow-wrap: anywhere;
+}
+
+.rh-dashboard-v2 .rh-metrics-columns, .rh-dashboard-v2 .rh-metrics-left, .rh-dashboard-v2 .rh-metrics-right {
+    min-width: 0;
+}
+
+.rh-dashboard-v2 .rh-metrics-preview-map {
+    max-width: 100%;
+}
+
+@media (max-width: 1024px) {
+    .dashboard {
+        height: auto;
+        min-height: 100dvh;
+        overflow: visible;
+    }
+
+    .dashboard .dashboard-content.rh-dashboard-v2 {
+        display: flex;
+        flex-direction: column;
+        flex: 1 0 auto;
+        min-height: 0;
+    }
+
+    .dashboard .rh-dashboard-v2 .sidebar.rh-v2-sidebar {
+        width: 100%;
+        min-width: 0;
+        flex: none;
+        max-height: none;
+        overflow: visible;
+        border-right: 0;
+        border-bottom: 1px solid #26374a;
+    }
+
+    .dashboard .rh-dashboard-v2 .workspace {
+        width: 100%;
+        min-width: 0;
+        flex: 1 1 auto;
+        overflow: visible;
+    }
+
+    .dashboard .rh-v2-sidebar .rh-v2-terrain-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .maps-page .filters-content {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .maps-page .map-list-item {
+        grid-template-columns: minmax(125px, 2fr) minmax(65px, .7fr) minmax(55px, .6fr) minmax(100px, 1fr) 38px;
+    }
+
+    .maps-page .map-list-item > div:nth-child(5) {
+        display: none;
+    }
+}
+
+@media (max-width: 700px) {
+    .dashboard .dashboard-header, .maps-page .maps-header {
+        height: auto;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 12px 14px;
+    }
+
+    .dashboard .dashboard-header .header-actions, .maps-page .maps-header-actions {
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .dashboard .dashboard-header .header-actions button, .maps-page .maps-header-actions .maps-nav-button {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .dashboard .rh-dashboard-v2 .workspace {
+        padding: 14px 12px 24px;
+    }
+
+    .dashboard .rh-v2-sidebar .rh-v2-terrain-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .dashboard .rh-v2-complexity {
+        min-width: 0;
+    }
+
+    .dashboard .rh-v2-complexity button {
+        min-width: 0;
+    }
+
+    .dashboard .rh-metrics-columns, .dashboard .rh-metrics-lower {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .dashboard .rh-metrics-grid, .dashboard .rh-metrics-columns .rh-metrics-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .dashboard .rh-workspace-tabs {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    .dashboard .rh-workspace-tabs button {
+        flex: 1 0 auto;
+    }
+
+    .maps-page .maps-content {
+        padding: 20px 12px 32px;
+    }
+
+    .maps-page .maps-search-row {
+        flex-wrap: wrap;
+    }
+
+    .maps-page .maps-search {
+        flex: 1 1 100%;
+    }
+
+    .maps-page .filters-content {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .maps-page .results-toolbar {
+        height: auto;
+        min-height: 42px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .maps-page .results-actions {
+        flex-wrap: wrap;
+    }
+
+    .maps-page .maps-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .maps-page .map-list-item {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px 12px;
+        padding: 12px;
+    }
+
+    .maps-page .map-list-item > div:nth-child(1) {
+        grid-column: 1;
+    }
+
+    .maps-page .map-list-item > div:nth-child(2), .maps-page .map-list-item > div:nth-child(3), .maps-page .map-list-item > div:nth-child(4) {
+        grid-column: 1;
+    }
+
+    .maps-page .map-list-item > div:nth-child(5) {
+        display: none;
+    }
+
+    .maps-page .map-list-item > div:last-child {
+        grid-column: 2;
+        grid-row: 1 / span 4;
+        align-self: center;
+    }
+
+    .maps-page .maps-pagination {
+        max-width: 100%;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .maps-page .delete-modal {
+        padding: 22px 16px;
+    }
+
+    .dashboard .dashboard-footer.rh-footer, .maps-page .dashboard-footer.rh-footer {
+        justify-content: center;
+        text-align: center;
+    }
+
+    .container {
+        min-height: 100dvh;
+        height: auto;
+        flex-direction: column;
+    }
+
+    .container .left {
+        flex: none;
+        min-height: 190px;
+        padding: 20px;
+    }
+
+    .container .right {
+        flex: 1 0 auto;
+        min-width: 0;
+        padding: 24px 16px;
+    }
+
+    .container .form-box {
+        width: min(100%, 440px);
+    }
+}
+
+@media (max-width: 400px) {
+    .dashboard .dashboard-header .header-actions button, .maps-page .maps-header-actions .maps-nav-button {
+        padding: 9px 8px;
+        font-size: .78rem;
+    }
+
+    .dashboard .rh-v2-complexity small {
+        font-size: .65rem;
+    }
+
+    .dashboard .rh-metrics-grid, .dashboard .rh-metrics-columns .rh-metrics-grid {
+        gap: 8px;
+    }
+
+    .maps-page .maps-filter-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .maps-page .maps-apply-search, .maps-page .maps-reset-search {
+        width: 100%;
+    }
+}

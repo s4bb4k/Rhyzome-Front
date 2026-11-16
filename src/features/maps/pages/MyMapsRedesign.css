@@ -326,3 +326,17 @@
         flex: 1;
     }
 }
+
+
+/* Tarjetas de mapas sin miniaturas: se priorizan los metadatos. */
+.maps-page .map-card-content {
+    padding: 18px;
+}
+
+.maps-page .map-card {
+    min-height: 0;
+}
+
+.maps-page .map-list-item {
+    min-height: 0;
+}
