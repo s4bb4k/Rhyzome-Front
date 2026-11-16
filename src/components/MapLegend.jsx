@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { Layers3 } from "lucide-react";
+import {useMemo} from "react";
+import {Layers3} from "lucide-react";
 
 import "./css/MapLegend.css";
 

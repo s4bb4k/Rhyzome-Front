@@ -1,8 +1,6 @@
 import {useEffect, useMemo, useRef, useState} from "react";
 import {useNavigate} from "react-router-dom";
 
-import {getTerrainSprite} from "../../../utils/terrainSprites";
-
 import {
     Search,
     SlidersHorizontal,
@@ -18,7 +16,7 @@ import {
     List,
     ChevronLeft,
     ChevronRight,
-    Map,
+    Map as MapIcon,
     LogOut,
     X,
     Trash2,
@@ -34,7 +32,7 @@ import {
 import {toast} from "sonner";
 
 const biomeIcons = {
-    Todos: Map,
+    Todos: MapIcon,
     Bosque: Trees,
     Desierto: Sun,
     Ciudad: Building2,
@@ -253,12 +251,12 @@ function MyMaps() {
         <div className="maps-page">
             <header className="maps-header">
                 <div className="maps-brand" aria-label="Rhyzome">
-                    <div className="maps-brand-icon"><Map size={17}/></div>
+                    <div className="maps-brand-icon"><MapIcon size={17}/></div>
                     <strong>RHYZOME</strong>
                 </div>
                 <nav className="maps-header-actions" aria-label="Navegación principal">
                     <button type="button" className="maps-nav-button" onClick={createMap}>
-                        <Map size={18}/> Generador
+                        <MapIcon size={18}/> Generador
                     </button>
                     <span className="maps-nav-button maps-nav-current" aria-current="page">
                         <Grid2X2 size={18}/> Mis mapas
@@ -447,7 +445,7 @@ function MyMaps() {
                 {hasSearched && !loading && !loadError && filteredMaps.length === 0 && (
                     <div className="maps-empty">
                         <div className="empty-icon">
-                            <Map size={42}/>
+                            <MapIcon size={42}/>
                         </div>
 
                         <h2>
@@ -546,7 +544,7 @@ function MyMaps() {
 
             <footer className="dashboard-footer rh-footer maps-footer">
                 <div className="rh-footer-identity">
-                    <Map size={17} aria-hidden="true"/>
+                    <MapIcon size={17} aria-hidden="true"/>
                     <strong>RHYZOME</strong>
                     <span className="rh-footer-divider" aria-hidden="true"/>
                     <span>Generador procedural de escenarios 2D</span>
@@ -625,7 +623,7 @@ function MapCard({
                      deleting,
                  }) {
     const biome = normalizeMapType(map.map_type);
-    const Icon = biomeIcons[biome] || Map;
+    const Icon = biomeIcons[biome] || MapIcon;
 
     return (
         <article
@@ -641,12 +639,6 @@ function MapCard({
                 }
             }}
         >
-            <div className="map-image">
-                <MapThumbnail
-                    matrix={map.matrix}
-                    mapType={biome}
-                />
-            </div>
 
             <div className="map-card-content">
 
@@ -708,7 +700,7 @@ function MapListItem({
                          deleting,
                      }) {
     const biome = normalizeMapType(map.map_type);
-    const Icon = biomeIcons[biome] || Map;
+    const Icon = biomeIcons[biome] || MapIcon;
 
     return (
         <article
@@ -724,9 +716,6 @@ function MapListItem({
                 }
             }}
         >
-            <div className="map-list-thumbnail">
-                <MapThumbnail matrix={map.matrix} mapType={biome}/>
-            </div>
 
             <div className="map-list-info">
                 <h3>{map.name}</h3>
@@ -773,118 +762,6 @@ function MapListItem({
     );
 }
 
-function MapThumbnail({matrix, mapType}) {
-    if (
-        !Array.isArray(matrix) ||
-        matrix.length === 0 ||
-        !Array.isArray(matrix[0]) ||
-        matrix[0].length === 0
-    ) {
-        return (
-            <div className="map-thumbnail-empty">
-                <Map size={30}/>
-                <span>Sin vista previa</span>
-            </div>
-        );
-    }
-
-    const rows = matrix.length;
-    const columns = matrix[0].length;
-
-    // Limitar la cantidad de celdas para las miniaturas
-    const maxPreview = 55;
-
-    const rowStep = Math.max(
-        1,
-        Math.ceil(rows / maxPreview)
-    );
-
-    const columnStep = Math.max(
-        1,
-        Math.ceil(columns / maxPreview)
-    );
-
-    const preview = matrix
-        .filter((_, rowIndex) => rowIndex % rowStep === 0)
-        .map((row) =>
-            row.filter(
-                (_, columnIndex) =>
-                    columnIndex % columnStep === 0
-            )
-        );
-
-    const normalizedType = String(
-        mapType ?? ""
-    ).toLowerCase();
-
-    return (
-        <div
-            className="map-thumbnail"
-            style={{
-                display: "grid",
-
-                gridTemplateColumns:
-                    `repeat(${preview[0].length}, minmax(0, 1fr))`,
-
-                gridTemplateRows:
-                    `repeat(${preview.length}, minmax(0, 1fr))`,
-
-                width: "100%",
-                height: "100%",
-
-                overflow: "hidden",
-
-                backgroundColor: "#101820",
-            }}
-            aria-label={`Vista previa de ${columns} por ${rows}`}
-        >
-            {preview.flatMap((row, y) =>
-                row.map((cell, x) => {
-                    const cellValue = Number(cell);
-
-                    const sprite = getTerrainSprite(
-                        normalizedType,
-                        cellValue
-                    );
-
-                    const isDungeon =
-                        normalizedType === "mazmorra";
-
-                    return (
-                        <span
-                            key={`${y}-${x}`}
-                            style={{
-                                minWidth: 0,
-                                minHeight: 0,
-
-                                backgroundColor: getMapColor(
-                                    normalizedType,
-                                    cellValue
-                                ),
-
-                                backgroundImage: sprite
-                                    ? `url("${sprite}")`
-                                    : "none",
-
-                                backgroundSize: "100% 100%",
-                                backgroundRepeat: "no-repeat",
-
-                                imageRendering: "pixelated",
-
-                                filter: isDungeon
-                                    ? cellValue === 0
-                                        ? "brightness(0.35)"
-                                        : "brightness(1.15)"
-                                    : "none",
-                            }}
-                        />
-                    );
-                })
-            )}
-        </div>
-    );
-}
-
 function normalizeMapType(type) {
     const value = String(type ?? "").trim().toLowerCase();
 
@@ -896,27 +773,6 @@ function normalizeMapType(type) {
     return type ? String(type) : "Mapa";
 }
 
-function getMapColor(type, value) {
-    const active = value !== 0;
-
-    switch (String(type ?? "").toLowerCase()) {
-        case "bosque":
-            return active ? "#22c55e" : "#123524";
-
-        case "desierto":
-            return active ? "#f4c76b" : "#8b5e34";
-
-        case "ciudad":
-        case "urbano":
-            return active ? "#cbd5e1" : "#334155";
-
-        case "mazmorra":
-            return active ? "#d1d5db" : "#111827";
-
-        default:
-            return active ? "#10b981" : "#111827";
-    }
-}
 
 function formatDate(value) {
     if (!value) return "Sin fecha";

@@ -1,4 +1,4 @@
-import { resolveMapTile } from "../utils/mapTileResolver";
+import {resolveMapTile} from "../utils/mapTileResolver";
 
 export default function MapRenderer({
                                         map,
