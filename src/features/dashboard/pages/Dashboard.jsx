@@ -1,14 +1,11 @@
 import {useLocation, useNavigate} from "react-router-dom";
-import MapRenderer from "../../../components/MapRenderer";
-import {getTerrainSprite} from "../../../utils/terrainSprites";
 
 import {
-    generateAdaptiveMap
+    generateV2Map
 } from "../../../services/mapsApi";
 
 import {
-    saveMap,
-    getMapMatrix
+    saveMap
 } from "../../../services/mapsStorage";
 
 import {
@@ -43,15 +40,20 @@ import {
     useState
 } from "react";
 import MetricTooltip from "../../../components/MetricTooltip";
-import MapLegend from "../../../components/MapLegend";
 import MapViewer from "../../../components/MapViewer";
 import GenerationError from "../../../components/GenerationError.jsx";
 import GenerationStatus from "../../../components/GenerationStatus";
 import UnsavedMapDialog from "../../../components/UnsavedMapDialog";
 import MapHistory from "../../../components/MapHistory";
+import MapRendererV2, { exportV2Canvas } from "../../../components/MapRendererV2";
+import MapLegendV2 from "../../../components/MapLegendV2";
+import MapMetricsPanel from "../../../components/MapMetricsPanel";
+import "../../../components/css/DashboardV2.css";
+import "../../../components/css/DashboardBranding.css";
 
 function restoreSavedMap(savedMap) {
     if (!savedMap) return null;
+    if (!savedMap.generation_data?.layers) return null;
 
     const mapTypes = {
         bosque: "Bosque", desierto: "Desierto", ciudad: "Ciudad",
@@ -66,15 +68,7 @@ function restoreSavedMap(savedMap) {
         savedMap.algorithm ?? (mapType === "Mazmorra" ? "cellular" : "perlin")
     ).toLowerCase();
     const storedGeneration = savedMap.generation_data;
-    const generatedMap = storedGeneration && typeof storedGeneration === "object"
-        ? storedGeneration
-        : {
-            map: savedMap.matrix,
-            matrix: savedMap.matrix,
-            metrics: savedMap.metrics,
-            seed: savedMap.seed,
-            algorithm,
-        };
+    const generatedMap = storedGeneration;
 
     return {
         mapType,
@@ -85,6 +79,7 @@ function restoreSavedMap(savedMap) {
         complexity: complexities[String(savedMap.complexity ?? "").toLowerCase()] || "Medio",
         tileSize: Number(savedMap.tile_size ?? 16),
         generatedMap,
+        version: "v2",
     };
 }
 
@@ -95,7 +90,14 @@ function Dashboard() {
 
     // La función inicializadora se ejecuta solo al montar esta instancia.
     const [restored] = useState(() => restoreSavedMap(savedMap));
+    useEffect(() => {
+        if (savedMap && !restored) {
+            toast.warning("Este mapa utiliza un formato anterior y no puede abrirse en el generador actual.");
+        }
+    }, [savedMap, restored]);
 
+    const version = "v2";
+    const [activeTab, setActiveTab] = useState("generator");
     const [mapType, setMapType] = useState(
         () => restored?.mapType ?? localStorage.getItem("rhizome.mapType") ?? "Mazmorra"
     );
@@ -129,7 +131,7 @@ function Dashboard() {
     const [isSaving, setIsSaving] = useState(false);
     // Si se abrió desde Mis Mapas, ya está guardado
     const [isMapSaved, setIsMapSaved] = useState(
-        () => Boolean(savedMap)
+        () => Boolean(restored)
     );
     // Evita dos solicitudes de guardado simultáneas
     const savingRef = useRef(false);
@@ -142,8 +144,8 @@ function Dashboard() {
         width,
         height,
         seed,
-        complexity,
-    }), [mapType, algorithm, width, height, seed, complexity]);
+        complexity, version,
+    }), [mapType, algorithm, width, height, seed, complexity, version]);
 
     const hasPendingChanges = useMemo(() => {
         if (!generatedMap || !lastGeneratedConfig) return false;
@@ -153,6 +155,7 @@ function Dashboard() {
 
     // El mapa visible y sus exportaciones deben usar la configuración con la
     // que se generó, no los valores editados que aún están pendientes.
+    const visibleVersion = lastGeneratedConfig?.version ?? version;
     const visibleMapType = lastGeneratedConfig?.mapType ?? mapType;
     const visibleAlgorithm = lastGeneratedConfig?.algorithm ?? algorithm;
     const visibleWidth = lastGeneratedConfig?.width ?? Number(width);
@@ -258,7 +261,7 @@ function Dashboard() {
         if (!generatedMap) return;
 
         const exportData = {
-            rhyzome_version: "1.0",
+            rhyzome_version: "v2",
             exported_at: new Date().toISOString(),
             configuration: {
                 map_type: visibleMapType,
@@ -286,175 +289,25 @@ function Dashboard() {
     };
 
     const handleExportPNG = async () => {
-        if (!generatedMap) return;
-
-        const matrix = getMapMatrix(generatedMap);
-
-        // Validar que exista una matriz rectangular
-        if (
-            !Array.isArray(matrix) ||
-            matrix.length === 0 ||
-            !Array.isArray(matrix[0]) ||
-            matrix[0].length === 0 ||
-            !matrix.every(
-                (row) =>
-                    Array.isArray(row) &&
-                    row.length === matrix[0].length
-            )
-        ) {
-            toast.error("No se encontró una matriz válida para exportar.");
+        if (!generatedMap?.layers) {
+            toast.error("El mapa no contiene las capas necesarias para exportar PNG.");
             return;
         }
-
-        const rows = matrix.length;
-        const columns = matrix[0].length;
-
-        // Utilizar el tamaño seleccionado en el Dashboard
-        const pixelSize = Math.max(1, Math.round(Number(tileSize) || 16));
-
-        const terrainType = String(
-            generatedMap.ui_config?.terrain_type ??
-            generatedMap.parameters?.terrain_type ??
-            visibleMapType
-        ).toLowerCase();
-
         try {
-            // Obtener los sprites necesarios para el terreno
-            const spriteSources = new Set();
-
-            matrix.forEach((row) => {
-                row.forEach((cell) => {
-                    const sprite = getTerrainSprite(
-                        terrainType,
-                        Number(cell)
-                    );
-
-                    if (sprite) {
-                        spriteSources.add(sprite);
-                    }
-                });
-            });
-
-            // Cargar cada sprite una sola vez
-            const spriteEntries = await Promise.all(
-                [...spriteSources].map(async (src) => {
-                    const image = await loadSprite(src);
-                    return [src, image];
-                })
-            );
-
-            const loadedSprites = new globalThis.Map(spriteEntries);
-
-            // Crear el canvas
-            const canvas = document.createElement("canvas");
-
-            canvas.width = columns * pixelSize;
-            canvas.height = rows * pixelSize;
-
-            const ctx = canvas.getContext("2d");
-
-            if (!ctx) {
-                throw new Error(
-                    "No se pudo crear el contexto del canvas."
-                );
-            }
-
-            // Mantener la apariencia pixel art
-            ctx.imageSmoothingEnabled = false;
-
-            // Dibujar la matriz utilizando los sprites
-            matrix.forEach((row, y) => {
-                row.forEach((cell, x) => {
-                    const cellValue = Number(cell);
-
-                    const spriteSrc = getTerrainSprite(
-                        terrainType,
-                        cellValue
-                    );
-
-                    const image = loadedSprites.get(spriteSrc);
-
-                    const posX = x * pixelSize;
-                    const posY = y * pixelSize;
-
-                    // Color de respaldo
-                    ctx.fillStyle = getExportColor(
-                        terrainType,
-                        cellValue
-                    );
-
-                    ctx.fillRect(
-                        posX,
-                        posY,
-                        pixelSize,
-                        pixelSize
-                    );
-
-                    if (!image) return;
-
-                    // Aplicar el mismo contraste del Dashboard
-                    if (terrainType === "mazmorra") {
-                        ctx.filter =
-                            cellValue === 0
-                                ? "brightness(0.35)"
-                                : "brightness(1.15)";
-                    } else {
-                        ctx.filter = "none";
-                    }
-
-                    ctx.drawImage(
-                        image,
-                        posX,
-                        posY,
-                        pixelSize,
-                        pixelSize
-                    );
-
-                    // Evitar que el filtro afecte otras celdas
-                    ctx.filter = "none";
-                });
-            });
-
-            // Exportar PNG
-            const blob = await new Promise((resolve, reject) => {
-                canvas.toBlob(
-                    (result) => {
-                        if (result) {
-                            resolve(result);
-                        } else {
-                            reject(
-                                new Error("No se pudo generar el PNG.")
-                            );
-                        }
-                    },
-                    "image/png"
-                );
-            });
-
+            const canvas = await exportV2Canvas(generatedMap, Math.max(8, Number(tileSize) || 16));
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+            if (!blob) throw new Error("No se pudo crear el PNG");
             const url = URL.createObjectURL(blob);
-
             const link = document.createElement("a");
-
             link.href = url;
-
-            link.download =
-                `rhyzome_${terrainType}_${visibleSeed}.png`;
-
+            link.download = `rhyzome_${visibleMapType.toLowerCase()}_${visibleSeed}.png`;
             document.body.appendChild(link);
             link.click();
             link.remove();
-
-            toast.success("Descarga PNG iniciada");
-            // Liberar la URL temporal después de iniciar la descarga
             setTimeout(() => URL.revokeObjectURL(url), 1000);
-
+            toast.success("Descarga PNG iniciada");
         } catch (error) {
-            console.error("Error exportando PNG:", error);
-
-            toast.error(
-                error?.message ||
-                "No fue posible exportar el mapa como PNG."
-            );
+            toast.error(error?.message || "No fue posible exportar el PNG");
         }
     };
 
@@ -487,6 +340,11 @@ function Dashboard() {
                 tile_size: Number(tileSize),
                 attempts: 20,
             };
+            {
+                payload.complexity = ({ Bajo: "bajo", Medio: "medio", Alto: "alto" })[complexity] || "medio";
+                payload.variant = "B";
+                payload.include_ml = true;
+            }
 
             // Captura exactamente los parámetros enviados a esta solicitud.
             const requestedConfig = getGenerationConfig({
@@ -495,12 +353,12 @@ function Dashboard() {
                 width,
                 height,
                 seed,
-                complexity,
+                complexity, version,
             });
 
             console.log("Solicitud enviada al backend:", payload);
 
-            const response = await generateAdaptiveMap(payload);
+            const response = await generateV2Map(payload);
             // Simular una demora de 3 segundos solo en desarrollo
             /*if (import.meta.env.DEV) {
                 await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -513,7 +371,10 @@ function Dashboard() {
             console.log("======================================");
 
             console.log("Respuesta del backend:", response);
-            setGeneratedMap(response);
+            const normalizedResponse = response?.layers?.collision
+                ? { ...response, matrix: response.layers.collision.map(row => row.map(cell => Number(cell) === 0 ? 1 : 0)), rhyzome_version: "v2" }
+                : { ...response, rhyzome_version: version };
+            setGeneratedMap(normalizedResponse);
             setLastGeneratedConfig(requestedConfig);
             // El nuevo mapa todavía no está guardado.
             setIsMapSaved(false);
@@ -523,7 +384,7 @@ function Dashboard() {
             const historyId = `map-${historyCounterRef.current}`;
             const entry = {
                 id: historyId,
-                generatedMap: response,
+                generatedMap: normalizedResponse,
                 config: requestedConfig,
                 tileSize: Number(tileSize),
                 quality: getEvaluationMetrics(response).quality,
@@ -572,6 +433,7 @@ function Dashboard() {
         const config = selected.config;
         setGeneratedMap(selected.generatedMap);
         setLastGeneratedConfig(config);
+        
         setMapType(config.mapType);
         setAlgorithm(config.algorithm);
         setWidth(config.width);
@@ -585,10 +447,14 @@ function Dashboard() {
         setGenerationErrorType("unknown");
     };
 
+    const visibleHistory = mapHistory.filter((item) =>
+        item.config?.version === "v2"
+    );
+
     const handleSelectHistoryMap = (historyId) => {
         if (generating || isSaving || savingRef.current) return;
         if (historyId === activeMapId) return;
-        if (!mapHistory.some((item) => item.id === historyId)) return;
+        if (!visibleHistory.some((item) => item.id === historyId)) return;
 
         if (generatedMap && !isMapSaved) {
             setPendingHistoryId(historyId);
@@ -646,7 +512,7 @@ function Dashboard() {
                         <Map size={17}/>
                     </div>
 
-                    <strong>RHYZOME - VERSION LOCAL 2026</strong>
+                    <div className="rh-brand-copy"><strong>RHYZOME</strong></div>
                 </div>
 
                 <div className="header-actions">
@@ -656,7 +522,7 @@ function Dashboard() {
                         className="manual-button"
                         onClick={() => setShowManual(true)}
                     >
-                        <BookOpen size={14}/>
+                        <BookOpen size={18}/>
                         Manual de usuario
                     </button>
 
@@ -665,7 +531,7 @@ function Dashboard() {
                         className="maps-button"
                         onClick={() => navigate("/maps")}
                     >
-                        <Map size={14}/>
+                        <Map size={18}/>
                         Mis mapas
                     </button>
 
@@ -673,415 +539,159 @@ function Dashboard() {
                         className="logout-button"
                         onClick={logout}
                         title="Cerrar sesión"
+                        aria-label="Cerrar sesión"
                     >
-                        <LogOut size={15}/>
+                        <LogOut size={19}/>
                     </button>
 
                 </div>
 
             </header>
 
-            <div className="dashboard-content">
+            <div className="dashboard-content rh-dashboard-v2">
 
                 {/* SIDEBAR */}
-                <aside className="sidebar">
-
-                    <div className="sidebar-title">
-                        PARÁMETROS
+                {<aside className="sidebar rh-v2-sidebar" aria-label="Configuración del generador V2">
+                    <div className="sidebar-title">GENERADOR</div>
+                    <section className="parameter-section">
+                        <div className="section-label">TIPO DE MAPA</div>
+                        <div className="map-types rh-v2-terrain-grid">
+                            <button type="button" className={mapType === "Bosque" ? "map-type active" : "map-type"} onClick={() => selectMapType("Bosque")}><Trees size={14}/>Bosque</button>
+                            <button type="button" className={mapType === "Desierto" ? "map-type active" : "map-type"} onClick={() => selectMapType("Desierto")}><Sun size={14}/>Desierto</button>
+                            <button type="button" className={mapType === "Ciudad" ? "map-type active" : "map-type"} onClick={() => selectMapType("Ciudad")}><Building2 size={14}/>Ciudad</button>
+                            <button type="button" className={mapType === "Mazmorra" ? "map-type active" : "map-type"} onClick={() => selectMapType("Mazmorra")}><Skull size={14}/>Mazmorra</button>
+                        </div>
+                    </section>
+                    <section className="parameter-section rh-v2-slider-section">
+                        <div className="section-label">DIMENSIONES</div>
+                        <label className="rh-v2-range-label"><span>ANCHO</span><strong>{width}</strong><input aria-label="Ancho V2" type="range" min="10" max="100" value={width} onChange={e => setWidth(Number(e.target.value))}/></label>
+                        <label className="rh-v2-range-label"><span>ALTO</span><strong>{height}</strong><input aria-label="Alto V2" type="range" min="10" max="100" value={height} onChange={e => setHeight(Number(e.target.value))}/></label>
+                    </section>
+                    <section className="parameter-section">
+                        <div className="section-label">SEMILLA (SEED)</div>
+                        <div className="rh-v2-seed"><input aria-label="Semilla V2" type="number" value={seed} onChange={e => setSeed(e.target.value)}/><button type="button" title="Nueva semilla" aria-label="Nueva semilla" onClick={() => setSeed(String(Math.floor(Math.random() * 1000000)))}><Shuffle size={15}/></button></div>
+                    </section>
+                    <section className="parameter-section">
+                        <div className="section-label">ALGORITMO RECOMENDADO</div>
+                        <div className="rh-v2-recommendation"><CheckCircle2 size={15}/><span>{mapType === "Mazmorra" ? "Autómatas Celulares" : "Ruido procedural"} · {mapType}</span></div>
+                    </section>
+                    <section className="parameter-section">
+                        <div className="section-label">NIVEL DE COMPLEJIDAD</div>
+                        <div className="rh-v2-complexity" role="group" aria-label="Complejidad V2">
+                            {[["Bajo","Simple"],["Medio","Equilibrado"],["Alto","Denso"]].map(([value,detail]) => <button key={value} type="button" aria-pressed={complexity === value} className={complexity === value ? "active" : ""} onClick={() => setComplexity(value)}><strong>{value}</strong><small>{detail}</small></button>)}
+                        </div>
+                        <label className="rh-v2-range-label rh-v2-scale"><span>ESCALA DE VISUALIZACIÓN</span><strong>{tileSize} px</strong><input aria-label="Escala visual V2" type="range" min="8" max="32" value={tileSize} onChange={e => setTileSize(Number(e.target.value))}/></label>
+                    </section>
+                    <div className="rh-v2-bottom-actions">
+                        <button type="button" className="rh-v2-generate" onClick={handleGenerateRequest} disabled={generating || isSaving}><Sparkles size={17}/> {generating ? "Generando..." : "Generar mapa"}</button>
+                        <div className="rh-v2-export">
+                            <button type="button" onClick={handleSaveMap} disabled={!generatedMap || generating || isSaving || isMapSaved}><Save size={19}/><span>Guardar</span></button>
+                            <button type="button" onClick={handleExportJSON} disabled={!generatedMap || generating}><FileJson size={19}/><span>JSON</span></button>
+                            <button type="button" onClick={handleExportPNG} disabled={!generatedMap || generating}><Image size={19}/><span>PNG</span></button>
+                        </div>
                     </div>
+                </aside>}
 
-                    {/* TIPO DE MAPA */}
-                    <section className="parameter-section">
-
-                        <div className="section-label">
-                            TIPO DE MAPA
-                        </div>
-
-                        <div className="map-types">
-
-                            <button
-                                className={mapType === "Bosque" ? "map-type active" : "map-type"}
-                                onClick={() => selectMapType("Bosque")}
-                            >
-                                <Trees size={14}/>
-                                Bosque
-                            </button>
-
-                            <button
-                                className={mapType === "Desierto" ? "map-type active" : "map-type"}
-                                onClick={() => selectMapType("Desierto")}
-                            >
-                                <Sun size={14}/>
-                                Desierto
-                            </button>
-
-                            <button
-                                className={mapType === "Ciudad" ? "map-type active" : "map-type"}
-                                onClick={() => selectMapType("Ciudad")}
-                            >
-                                <Building2 size={14}/>
-                                Ciudad
-                            </button>
-
-                            <button
-                                className={mapType === "Mazmorra" ? "map-type active" : "map-type"}
-                                onClick={() => selectMapType("Mazmorra")}
-                            >
-                                <Skull size={14}/>
-                                Mazmorra
-                            </button>
-
-                        </div>
-
-                    </section>
-
-                    {/* DIMENSIONES */}
-                    <section className="parameter-section">
-
-                        <div className="section-label">
-                            DIMENSIONES
-                        </div>
-
-                        <Slider
-                            label="ANCHO"
-                            value={width}
-                            min={10}
-                            max={100}
-                            onChange={setWidth}
-                        />
-
-                        <Slider
-                            label="ALTO"
-                            value={height}
-                            min={10}
-                            max={100}
-                            onChange={setHeight}
-                        />
-
-                    </section>
-
-                    {/* SEED */}
-                    <section className="parameter-section">
-
-                        <div className="section-label">
-                            SEMILLA (SEED)
-                        </div>
-
-                        <div className="seed-container">
-
-                            <input
-                                type="number"
-                                value={seed}
-                                onChange={(e) => setSeed(e.target.value)}
-                            />
-
-                            <button onClick={generateRandomSeed}>
-                                <Shuffle size={14}/>
-                            </button>
-
-                        </div>
-
-                    </section>
-
-                    {/* ALGORITMOS */}
-                    <section className="parameter-section">
-
-                        <div className="section-label">
-                            ALGORITMOS
-                        </div>
-
-                        <div className="recommendation-message">
-                            <BadgeCheck size={14}/>
-                            Recomendado
-                            para {mapType}: {mapType === "Mazmorra" ? "Autómatas Celulares" : "Ruido Perlin"}
-                        </div>
-
-                        <Algorithm
-                            title="Ruido Perlin/Simplex"
-                            description="Terreno orgánico y natural"
-                            enabled={algorithm === "perlin"}
-                            onSelect={() => {
-                            }}
-                        />
-
-                        <Algorithm
-                            title="Autómatas Celulares"
-                            description="Genera cuevas y grutas"
-                            enabled={algorithm === "cellular"}
-                            onSelect={() => {
-                            }}
-                        />
-
-                    </section>
-
-                    {/* COMPLEJIDAD */}
-                    <section className="parameter-section">
-
-                        <div className="section-label">
-                            PARÁMETROS AVANZADOS
-                        </div>
-
-                        <div className="sub-label">
-                            NIVEL DE COMPLEJIDAD
-                        </div>
-
-                        <div className="complexity">
-
-                            {["Bajo", "Medio", "Alto"].map((level) => (
-                                <button
-                                    key={level}
-                                    className={
-                                        complexity === level
-                                            ? "complexity-button active"
-                                            : "complexity-button"
-                                    }
-                                    onClick={() => setComplexity(level)}
-                                >
-                                    <strong>{level}</strong>
-
-                                    <small>
-                                        {level === "Bajo"
-                                            ? "Simple y legible"
-                                            : level === "Medio"
-                                                ? "Balance equilibrado"
-                                                : "Detallado y denso"}
-                                    </small>
-                                </button>
-                            ))}
-
-                        </div>
-
-                        <Slider
-                            label="Escala de visualización"
-                            value={tileSize}
-                            min={8}
-                            max={32}
-                            onChange={setTileSize}
-                            suffix=" px"
-                            tooltip="Ajusta el tamaño visual de las celdas del mapa en píxeles. Aumenta el valor para observar más detalles o redúcelo para visualizar una mayor parte del escenario. No modifica las dimensiones ni el contenido del mapa generado."
-                        />
-
-                    </section>
-
-                    {/* EVALUACIÓN - SOLO LECTURA */}
-                    <section className="parameter-section">
-                        <div className="section-label">
-                            EVALUACIÓN
-                        </div>
-
-                        <Slider
-                            label="CALIDAD"
-                            value={quality}
-                            min={0}
-                            max={100}
-                            suffix="%"
-                            readOnly
-                            tooltip="Indicador general de calidad del mapa calculado por el sistema. Permite consultar la evaluación obtenida durante la generación."
-                        />
-
-                        <Slider
-                            label="CONECTIVIDAD"
-                            value={connectivity}
-                            min={0}
-                            max={100}
-                            suffix="%"
-                            readOnly
-                            tooltip="Métrica relacionada con la conexión entre las zonas transitables del mapa, según el procedimiento de evaluación implementado."
-                        />
-
-                        <Slider
-                            label="ACCESIBILIDAD"
-                            value={accessibility}
-                            min={0}
-                            max={100}
-                            suffix="%"
-                            readOnly
-                            tooltip="Indicador relacionado con la disponibilidad de espacios transitables dentro del mapa generado."
-                        />
-                    </section>
-
-                    {/* ACTIONS */}
-                    <div className="sidebar-actions">
-
-                        <button
-                            className="generate-button"
-                            onClick={handleGenerateRequest}
-                            disabled={generating || isSaving}
-                        >
-                            <Sparkles size={15}/>
-
-                            Generar mapa
-                        </button>
-
-                        <div className="export-buttons">
-
-                            {/* GUARDAR MAPA */}
-                            <button
-                                type="button"
-                                className="export-button save-button"
-                                onClick={handleSaveMap}
-                                disabled={
-                                    !generatedMap ||
-                                    generating ||
-                                    isSaving ||
-                                    isMapSaved
-                                }
-                                title={
-                                    isMapSaved
-                                        ? "Este mapa ya está guardado"
-                                        : isSaving
-                                            ? "Guardando mapa..."
-                                            : "Guardar mapa en Supabase"
-                                }
-                            >
-                                {isSaving ? (
-                                    <LoaderCircle
-                                        size={21}
-                                        strokeWidth={1.8}
-                                        className="save-spinner"
-                                    />
-                                ) : isMapSaved ? (
-                                    <CheckCircle2
-                                        size={21}
-                                        strokeWidth={1.8}
-                                    />
-                                ) : (
-                                    <Save size={21} strokeWidth={1.8} />
-                                )}
-
-                                <span>
-                                    {isSaving
-                                        ? "Guardando"
-                                        : isMapSaved
-                                            ? "Guardado"
-                                            : "Guardar"}
-                                </span>
-
-                            </button>
-
-                            {/* EXPORTAR JSON */}
-                            <button
-                                type="button"
-                                className="export-button json-button"
-                                onClick={handleExportJSON}
-                                disabled={!generatedMap || generating}
-                                title="Descargar mapa en formato JSON"
-                            >
-                                <FileJson size={21} strokeWidth={1.8} />
-                                <span>JSON</span>
-                            </button>
-
-                            {/* EXPORTAR PNG */}
-                            <button
-                                type="button"
-                                className="export-button png-button"
-                                onClick={handleExportPNG}
-                                disabled={!generatedMap || generating}
-                                title="Descargar imagen del mapa"
-                            >
-                                <Image size={21} strokeWidth={1.8} />
-                                <span>PNG</span>
-                            </button>
-
-                        </div>
-
-                    </div>
-
-                </aside>
 
                 {/* WORKSPACE: solo muestra el mapa generado */}
                 <main className="workspace">
+                    {<nav className="rh-workspace-tabs" aria-label="Vista del escenario">
+                        <button type="button" className={activeTab === "generator" ? "active" : ""} onClick={() => setActiveTab("generator")}>Generador</button>
+                        <button type="button" className={activeTab === "metrics" ? "active" : ""} onClick={() => setActiveTab("metrics")}>Métricas</button>
+                    </nav>}
+                    {<div className="rh-metrics-view" style={{display: activeTab === "metrics" ? "block" : "none"}}>
+                        <div className="rh-v2-notice"><span className="rh-notice-icon">✓</span><div><strong>Métricas del escenario generado</strong><p>Evaluación del mapa según las medidas disponibles de calidad y complejidad.</p></div></div>
+                        <div className="rh-metrics-columns">
+                            <div className="rh-metrics-left">
+                                {generatedMap && <section className="rh-metrics-preview"><h3>◈ &nbsp; Mapa generado ({visibleVersion.toUpperCase()})</h3><div className="rh-metrics-preview-map">
+                                    {generatedMap?.layers && <MapRendererV2 response={generatedMap} terrainType={visibleMapType} tileSize={16} fit/>}
+                                </div></section>}
+                                {generatedMap?.layers && <MapLegendV2 response={generatedMap}/>}
+                            </div>
+                            <MapMetricsPanel response={generatedMap} terrainType={visibleMapType} version={visibleVersion}/>
+                        </div>
+                    </div>}
+                    <div className="rh-generator-pane" style={{display: activeTab === "generator" ? "flex" : "none"}}>
 
-                    {generating ? (
 
-                        /* GENERACIÓN EN PROCESO */
-                        <MapLoader />
+                        {generating ? (
 
-                    ) : generationError ? (
+                            /* GENERACIÓN EN PROCESO */
+                            <MapLoader />
 
-                        /* ERROR DE GENERACIÓN */
-                        <GenerationError
-                            type={generationErrorType}
-                            message={generationError}
-                            onRetry={generateMap}
-                            retrying={generating}
-                        />
+                        ) : generationError ? (
 
-                    ) : generatedMap ? (
-
-                        /* MAPA GENERADO */
-                        <div className="map-result-container">
-
-                            <GenerationStatus
-                                hasMap={Boolean(generatedMap)}
-                                hasChanges={hasPendingChanges}
+                            /* ERROR DE GENERACIÓN */
+                            <GenerationError
+                                type={generationErrorType}
+                                message={generationError}
+                                onRetry={generateMap}
+                                retrying={generating}
                             />
 
-                            {/* Historial compacto integrado en la zona del explorador. */}
-                            <div className="map-viewer-history-anchor">
-                                <MapViewer>
-                                    <MapRenderer
-                                        map={getMapMatrix(generatedMap)}
-                                        terrainType={visibleMapType.toLowerCase()}
-                                        tileSize={tileSize}
-                                    />
-                                </MapViewer>
+                        ) : generatedMap ? (
 
-                                <MapHistory
-                                    maps={mapHistory}
-                                    activeMapId={activeMapId}
-                                    onSelect={handleSelectHistoryMap}
-                                    onDelete={handleDeleteHistoryMap}
-                                    disabled={generating || isSaving}
+                            /* MAPA GENERADO */
+                            <div className="map-result-container">
+
+                                <GenerationStatus
+                                    hasMap={Boolean(generatedMap)}
+                                    hasChanges={hasPendingChanges}
                                 />
+
+                                {/* Historial compacto integrado en la zona del explorador. */}
+                                <div className="map-viewer-history-anchor">
+                                    <MapViewer>
+                                        {generatedMap?.layers && <MapRendererV2 response={generatedMap} terrainType={visibleMapType} tileSize={tileSize} />}
+                                    </MapViewer>
+
+                                    <MapHistory
+                                        maps={visibleHistory}
+                                        activeMapId={activeMapId}
+                                        onSelect={handleSelectHistoryMap}
+                                        onDelete={handleDeleteHistoryMap}
+                                        disabled={generating || isSaving}
+                                    />
+                                </div>
+
+                                {generatedMap?.layers && <MapLegendV2 response={generatedMap} />}
+
+
+
                             </div>
 
-                            <MapLegend
-                                algorithm={visibleAlgorithm}
-                                terrainType={visibleMapType}
-                            />
+                        ) : (
 
+                            /* ESTADO INICIAL */
+                            <div className="empty-workspace">
 
+                                <Map size={44} strokeWidth={1.5} />
 
-                        </div>
+                                <h2>Configura y genera tu mapa</h2>
 
-                    ) : (
+                                <p>
+                                    Selecciona el terreno y los parámetros de "V2" y presiona
+                                    <strong> "Generar mapa"</strong> para crear tu escenario.
+                                </p>
 
-                        /* ESTADO INICIAL */
-                        <div className="empty-workspace">
+                            </div>
 
-                            <Map size={44} strokeWidth={1.5} />
+                        )}
 
-                            <h2>Configura y genera tu mapa</h2>
-
-                            <p>
-                                Ajusta los parámetros de la izquierda y presiona
-                                <strong> "Generar mapa"</strong> para crear tu mapa procedural.
-                            </p>
-
-                        </div>
-
-                    )}
-
+                    </div>
                 </main>
 
             </div>
 
             {/* FOOTER */}
-            <footer className="dashboard-footer">
-
-        <span>
-          Rhizome
-        </span>
-
-                <span>
-          © 2026
-        </span>
-
-                <span>
-          Generador Procedural de Mapas
-        </span>
-
+            <footer className="dashboard-footer rh-footer">
+                <div className="rh-footer-identity">
+                    <Map size={17} aria-hidden="true" />
+                    <strong>RHYZOME</strong>
+                    <span className="rh-footer-divider" aria-hidden="true" />
+                    <span>Generador procedural de escenarios 2D</span>
+                </div>
+                <span className="rh-footer-copyright">© 2026 · Proyecto académico</span>
             </footer>
 
             {showManual && (
@@ -1113,27 +723,45 @@ function Dashboard() {
                             </button>
                         </div>
 
-                        <div className="manual-content">
+                        <div className="manual-content manual-guide">
+                            <p className="manual-intro">Rhyzome crea escenarios para videojuegos. No necesitas conocimientos de programación: elige un tipo de mapa, ajusta sus opciones y observa el resultado.</p>
+                            <h3>1. ¿Cómo genero un mapa?</h3>
                             <ol>
-                                <li><strong>Selecciona el mapa.</strong> El sistema marcará automáticamente el algoritmo
-                                    recomendado.
-                                </li>
-                                <li><strong>Ajusta las dimensiones y la semilla.</strong> La misma semilla permite
-                                    reproducir un mapa.
-                                </li>
-                                <li><strong>Configura la complejidad y evaluación.</strong> Revisa los valores antes de
-                                    generar.
-                                </li>
-                                <li><strong>Genera el mapa.</strong> Después podrás guardarlo o exportarlo como JSON o
-                                    PNG.
-                                </li>
+                                <li><strong>Elige el escenario:</strong> bosque, desierto, ciudad o mazmorra.</li>
+                                <li><strong>Selecciona el tamaño:</strong> cuanto mayores sean las dimensiones, más espacio tendrá el mapa.</li>
+                                <li><strong>Elige la complejidad:</strong> indica el tipo de resultado que deseas obtener; el sistema también puede estimar la complejidad del mapa generado.</li>
+                                <li><strong>Usa una semilla si quieres repetir un resultado:</strong> es un número que ayuda a reproducir la generación con los mismos ajustes.</li>
+                                <li><strong>Presiona Generar:</strong> observa el mapa, su leyenda y la pestaña de métricas. Puedes guardarlo o exportarlo como imagen PNG o archivo JSON.</li>
                             </ol>
-
-                            <div className="manual-recommendations">
-                                <h3>Algoritmos recomendados</h3>
-                                <p><strong>Bosque, Desierto y Ciudad:</strong> Ruido Perlin/Simplex.</p>
-                                <p><strong>Mazmorra:</strong> Autómatas Celulares.</p>
+                            <h3>2. ¿Qué son las métricas?</h3>
+                            <p>Son medidas que describen cómo está construido el mapa. <strong>No son notas ni calificaciones:</strong> un número más alto no siempre significa un mapa mejor. Por ejemplo, un bosque puede necesitar más obstáculos que una plaza abierta.</p>
+                            <div className="manual-metric-list">
+                                <div><strong>Accesibilidad</strong><p>Cuánto espacio se puede recorrer. Si marca <strong>80 %</strong>, aproximadamente 80 de cada 100 casillas son transitables. No asegura que todas estén comunicadas.</p></div>
+                                <div><strong>Densidad de obstáculos</strong><p>Cuánto espacio está bloqueado por elementos que impiden pasar. Un <strong>20 %</strong> significa unas 20 casillas bloqueadas de cada 100. Más obstáculos no siempre es peor.</p></div>
+                                <div><strong>Conectividad</strong><p>Qué proporción del espacio transitable pertenece a la zona conectada más grande. <strong>100 %</strong> significa que todas las casillas transitables se conectan entre sí; no que todo el mapa sea transitable.</p></div>
+                                <div><strong>Mayor región conectada</strong><p>Qué tan grande es la zona continua principal respecto al espacio que puede recorrerse. Un valor alto indica que gran parte del recorrido está unido. Puede coincidir con conectividad según el cálculo usado.</p></div>
+                                <div><strong>Regiones conectadas</strong><p>Cuántas zonas transitables separadas existen. <strong>1</strong> indica una sola zona continua; <strong>3</strong> indica tres zonas que no están conectadas entre sí.</p></div>
+                                <div><strong>Densidad de bordes</strong><p>Cuántas veces cambia el tipo de terreno entre casillas vecinas. Un valor alto suele indicar más cambios entre superficies; uno bajo, áreas más uniformes.</p></div>
+                                <div><strong>Entropía (filas)</strong><p>Describe cuánto varía la distribución de terrenos a lo largo de las filas. Un valor mayor suele indicar más diversidad o irregularidad en esa dirección.</p></div>
+                                <div><strong>Entropía (columnas)</strong><p>Es similar a la anterior, pero analiza las columnas. No es un porcentaje ni una puntuación de calidad.</p></div>
+                                <div><strong>Densidad de objetos</strong><p>Qué proporción del mapa está ocupada por objetos contabilizados, como rocas, árboles o edificios, según el escenario. <strong>10 %</strong> significa aproximadamente una décima parte.</p></div>
+                                <div><strong>Tipos de terreno</strong><p>Cuántas clases diferentes de superficie aparecen. Por ejemplo, <strong>3</strong> podría corresponder a arena, agua y camino.</p></div>
+                                <div><strong>Tipos de objetos</strong><p>Cuántas clases distintas de elementos aparecen. Por ejemplo, cactus y rocas representan <strong>2</strong> tipos, aunque haya muchos de cada uno.</p></div>
+                                <div><strong>Solapamientos inválidos</strong><p>Cuenta situaciones donde elementos se colocaron de manera incompatible según las reglas del generador. <strong>0</strong> significa que no se detectaron conflictos de ese tipo.</p></div>
+                                <div><strong>Variación local</strong><p>Mide cuánto cambia la posibilidad de pasar de una casilla a la siguiente. Un valor alto indica más alternancia entre espacios libres y bloqueados.</p></div>
+                                <div><strong>Relación perímetro/área</strong><p>Compara el contorno de las zonas transitables con su superficie. Un valor mayor suele reflejar formas más recortadas o estrechas. <strong>No es un porcentaje</strong> y depende del tamaño y la forma del mapa.</p></div>
                             </div>
+                            <h3>3. ¿Cómo interpreto el gráfico radar?</h3>
+                            <p>Cada punta representa una característica distinta. Cuanto más lejos del centro llega la figura verde, mayor es el valor mostrado en ese eje. <strong>Una figura más grande no significa necesariamente mejor calidad.</strong> Compara el radar con las métricas numéricas para entender qué cambia entre mapas.</p>
+                            <h3>4. ¿Qué significa la complejidad ML?</h3>
+                            <p>La inteligencia artificial analiza características del mapa y lo clasifica como de complejidad <strong>baja, media o alta</strong>. Es una estimación del sistema, no una medida exacta de dificultad para todos los jugadores. Si aparece una confianza, indica qué tan segura es la predicción del modelo, no la calidad del mapa.</p>
+                            <h3>5. Ejemplo de lectura de resultados</h3>
+                            <p>Si un mapa muestra <strong>92 % de accesibilidad, 8 % de obstáculos, 100 % de conectividad y 1 región</strong>, puedes entender que casi todo el escenario se puede recorrer y que las zonas transitables forman una sola área comunicada. Eso no significa que el mapa sea necesariamente fácil o mejor.</p>
+                            <h3>6. ¿Qué hago si aparece «—»?</h3>
+                            <p>Significa que ese dato no está disponible para el mapa mostrado. <strong>No equivale a cero.</strong> Prueba generar un mapa nuevo y comprueba que la versión del sistema admita esa métrica.</p>
+                            <h3>7. ¿Para qué sirven las descargas?</h3>
+                            <p><strong>PNG:</strong> guarda una imagen que puedes ver o compartir. <strong>JSON:</strong> guarda datos del escenario para revisarlos o utilizarlos en otras herramientas compatibles.</p>
+                            <div className="manual-recommendations"><h3>¿Qué algoritmo utiliza cada escenario?</h3><p><strong>Bosque, desierto y ciudad:</strong> generación basada en ruido (Perlin/Simplex según la versión). <strong>Mazmorra:</strong> autómatas celulares. No necesitas configurar estos métodos para comprender las métricas.</p></div>
                         </div>
 
                         <button
@@ -1320,21 +948,7 @@ function DashboardPage() {
     return <Dashboard key={location.key}/>;
 }
 
-function loadSprite(src) {
-    return new Promise((resolve, reject) => {
-        const image = new window.Image();
 
-        image.onload = () => resolve(image);
-
-        image.onerror = () => {
-            reject(
-                new Error(`No se pudo cargar el sprite: ${src}`)
-            );
-        };
-
-        image.src = src;
-    });
-}
 
 /* ==========================================
    IDENTIFICAR ERRORES DE GENERACIÓN
@@ -1402,6 +1016,7 @@ function getGenerationConfig({
                                  height,
                                  seed,
                                  complexity,
+                                 version = "v2",
                              }) {
     return {
         mapType,
@@ -1409,9 +1024,10 @@ function getGenerationConfig({
         width: Number(width),
         height: Number(height),
         seed: seed == null ? "" : String(seed),
-        complexity,
+        complexity, version,
     };
 }
 
 export default DashboardPage;
+
 

@@ -1,6 +1,6 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { Info } from "lucide-react";
+import {useEffect, useId, useLayoutEffect, useRef, useState} from "react";
+import {createPortal} from "react-dom";
+import {Info} from "lucide-react";
 
 import "./css/MetricTooltip.css";
 
@@ -8,7 +8,7 @@ const TOOLTIP_WIDTH = 240;
 const TOOLTIP_GAP = 12;
 const SCREEN_MARGIN = 12;
 
-export default function MetricTooltip({ title, description }) {
+export default function MetricTooltip({title, description}) {
     const [isOpen, setIsOpen] = useState(false);
     const [position, setPosition] = useState({
         top: 0,
@@ -53,7 +53,7 @@ export default function MetricTooltip({ title, description }) {
                 Math.min(top, window.innerHeight - height - SCREEN_MARGIN)
             );
 
-            setPosition({ top, left });
+            setPosition({top, left});
         };
 
         updatePosition();
@@ -107,7 +107,7 @@ export default function MetricTooltip({ title, description }) {
                     aria-describedby={isOpen ? tooltipId : undefined}
                     onClick={() => setIsOpen((prev) => !prev)}
                 >
-                    <Info size={15} strokeWidth={2} />
+                    <Info size={15} strokeWidth={2}/>
                 </button>
             </span>
 

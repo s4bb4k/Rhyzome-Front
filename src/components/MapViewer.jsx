@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { Maximize2, Minimize2, Move, RotateCcw } from "lucide-react";
+import {useEffect, useRef, useState} from "react";
+import {Maximize2, Minimize2, Move, RotateCcw} from "lucide-react";
 
 import "./css/MapViewer.css";
 
-export default function MapViewer({ children }) {
+export default function MapViewer({children}) {
     const viewerRef = useRef(null);
     const viewportRef = useRef(null);
 
@@ -129,7 +129,7 @@ export default function MapViewer({ children }) {
 
             <div className="map-viewer-toolbar">
                 <div className="map-viewer-label">
-                    <Move size={16} />
+                    <Move size={16}/>
                     <span>Explorador de mapa</span>
                 </div>
 
@@ -141,7 +141,7 @@ export default function MapViewer({ children }) {
                         title="Restablecer posición"
                         aria-label="Restablecer posición del mapa"
                     >
-                        <RotateCcw size={17} />
+                        <RotateCcw size={17}/>
                     </button>
 
                     <button
@@ -160,9 +160,9 @@ export default function MapViewer({ children }) {
                         }
                     >
                         {isFullscreen ? (
-                            <Minimize2 size={17} />
+                            <Minimize2 size={17}/>
                         ) : (
-                            <Maximize2 size={17} />
+                            <Maximize2 size={17}/>
                         )}
                     </button>
                 </div>

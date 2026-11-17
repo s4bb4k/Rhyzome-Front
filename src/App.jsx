@@ -1,5 +1,4 @@
-
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import {BrowserRouter, Routes, Route, Navigate} from "react-router-dom";
 
 import Login from "./features/auth/pages/Login";
 import Register from "./features/auth/pages/Register";
@@ -9,44 +8,45 @@ import ResetPassword from "./features/auth/pages/ResetPassword";
 import Dashboard from "./features/dashboard/pages/Dashboard";
 import MyMaps from "./features/maps/pages/MyMaps";
 
-import { AuthProvider } from "./features/auth/context/AuthContext";
+import {AuthProvider} from "./features/auth/context/AuthContext";
 import ProtectedRoute from "./features/auth/components/ProtectedRoute";
 
-import { Toaster } from "sonner";
+import {Toaster} from "sonner";
+import "./responsive.css";
 
 function App() {
-  return (
-      <AuthProvider>
-        <BrowserRouter>
+    return (
+        <AuthProvider>
+            <BrowserRouter>
 
-          <Routes>
-            {/* Rutas públicas */}
-            <Route path="/" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
+                <Routes>
+                    {/* Rutas públicas */}
+                    <Route path="/" element={<Login/>}/>
+                    <Route path="/register" element={<Register/>}/>
+                    <Route path="/forgot-password" element={<ForgotPassword/>}/>
+                    <Route path="/reset-password" element={<ResetPassword/>}/>
 
-            {/* Rutas protegidas */}
-            <Route element={<ProtectedRoute />}>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/maps" element={<MyMaps />} />
-            </Route>
+                    {/* Rutas protegidas */}
+                    <Route element={<ProtectedRoute/>}>
+                        <Route path="/dashboard" element={<Dashboard/>}/>
+                        <Route path="/maps" element={<MyMaps/>}/>
+                    </Route>
 
-            {/* Rutas desconocidas */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+                    {/* Rutas desconocidas */}
+                    <Route path="*" element={<Navigate to="/" replace/>}/>
+                </Routes>
 
-          {/* Notificaciones globales */}
-          <Toaster
-              position="top-right"
-              theme="dark"
-              richColors
-              closeButton
-          />
+                {/* Notificaciones globales */}
+                <Toaster
+                    position="top-right"
+                    theme="dark"
+                    richColors
+                    closeButton
+                />
 
-        </BrowserRouter>
-      </AuthProvider>
-  );
+            </BrowserRouter>
+        </AuthProvider>
+    );
 }
 
 export default App;

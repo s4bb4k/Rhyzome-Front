@@ -51,3 +51,5 @@ test-results.xml
 # Cache de pruebas
 .vitest/
 node_modules/.vitest/
+
+.env.example
