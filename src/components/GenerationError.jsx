@@ -1,4 +1,3 @@
-
 import {
     AlertTriangle,
     WifiOff,
@@ -78,7 +77,7 @@ export default function GenerationError({
             aria-live="assertive"
         >
             <div className="generation-error-icon">
-                <Icon size={32} strokeWidth={1.7} />
+                <Icon size={32} strokeWidth={1.7}/>
             </div>
 
             <h2 className="generation-error-title">

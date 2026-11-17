@@ -1,0 +1,260 @@
+/* Rhyzome: cabecera y footer V2 */
+.dashboard-header .rh-brand-copy {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: .45rem;
+    min-width: 0
+}
+
+.dashboard-header .rh-brand-copy strong {
+    color: #f1f5f9;
+    font-size: .9rem;
+    letter-spacing: .025em
+}
+
+.dashboard-header .rh-brand-subtitle {
+    color: #9fb2c9;
+    font-size: .76rem;
+    font-weight: 500;
+    letter-spacing: .035em
+}
+
+.dashboard .dashboard-footer.rh-footer {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .6rem 1.25rem;
+    width: 100%;
+    min-height: 54px;
+    height: auto;
+    padding: .8rem clamp(1rem, 2vw, 2rem);
+    border-top: 1px solid #26374a;
+    background: #101923;
+    color: #b7c8da;
+    font-size: .8rem;
+    line-height: 1.45;
+    text-align: left
+}
+
+.dashboard .rh-footer-identity {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .6rem
+}
+
+.dashboard .rh-footer-identity svg {
+    color: #10d5aa;
+    flex-shrink: 0
+}
+
+.dashboard .rh-footer-identity strong {
+    color: #f1f5f9;
+    letter-spacing: .045em
+}
+
+.dashboard .rh-footer-divider {
+    width: 1px;
+    height: 15px;
+    background: #415268
+}
+
+.dashboard .rh-footer-copyright {
+    color: #9fb2c9;
+    white-space: nowrap
+}
+
+@media (max-width: 640px) {
+    .dashboard-header .rh-brand-copy {
+        gap: .15rem;
+        flex-direction: column;
+        align-items: flex-start
+    }
+
+    .dashboard-header .rh-brand-subtitle {
+        font-size: .65rem
+    }
+
+    .dashboard .dashboard-footer.rh-footer {
+        justify-content: center;
+        text-align: center
+    }
+
+    .dashboard .rh-footer-identity {
+        justify-content: center
+    }
+}
+
+/* Cabecera con marca única y acciones más visibles. */
+.dashboard .dashboard-header {
+    box-sizing: border-box;
+    min-height: 62px;
+    height: auto;
+    padding: 10px clamp(14px, 1.5vw, 28px);
+    gap: 16px;
+}
+
+.dashboard .dashboard-header .brand {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-width: 0
+}
+
+.dashboard .dashboard-header .brand-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0
+}
+
+.dashboard .dashboard-header .rh-brand-copy strong {
+    font-size: 1.12rem;
+    font-weight: 800;
+    letter-spacing: .055em;
+    line-height: 1.2
+}
+
+.dashboard .dashboard-header .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap
+}
+
+.dashboard .dashboard-header .header-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    min-height: 40px;
+    padding: 9px 15px;
+    border-radius: 9px;
+    font-size: .9rem;
+    font-weight: 600;
+    line-height: 1.25;
+    color: #e8f2fc;
+    border: 1px solid #34465d;
+    background: #182536;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+}
+
+.dashboard .dashboard-header .header-actions button:hover {
+    background: #23374b;
+    border-color: #10d5aa
+}
+
+.dashboard .dashboard-header .header-actions button:focus-visible {
+    outline: 2px solid #10d5aa;
+    outline-offset: 2px
+}
+
+.dashboard .dashboard-header .header-actions .logout-button {
+    min-width: 42px;
+    padding: 9px 11px
+}
+
+@media (max-width: 640px) {
+    .dashboard .dashboard-header {
+        min-height: 58px;
+        padding: 9px 12px;
+        gap: 8px
+    }
+
+    .dashboard .dashboard-header .rh-brand-copy strong {
+        font-size: 1rem
+    }
+
+    .dashboard .dashboard-header .header-actions {
+        gap: 6px
+    }
+
+    .dashboard .dashboard-header .header-actions button {
+        min-height: 38px;
+        padding: 8px 10px;
+        font-size: .78rem;
+        gap: 5px
+    }
+
+    .dashboard .dashboard-header .header-actions .logout-button {
+        min-width: 38px;
+        padding: 8px
+    }
+}
+
+/* Manual de usuario: lectura cómoda en escritorio y móvil */
+.manual-modal {
+    width: min(920px, calc(100vw - 32px));
+    max-height: min(88vh, 900px);
+    display: flex;
+    flex-direction: column;
+}
+
+.manual-modal .manual-content {
+    overflow-y: auto;
+    min-height: 0;
+    padding-right: 12px;
+    line-height: 1.65;
+}
+
+.manual-guide {
+    font-size: 15px;
+}
+
+.manual-guide h3 {
+    font-size: 17px;
+    margin: 22px 0 9px;
+    color: #e6fff4;
+}
+
+.manual-guide p {
+    margin: 7px 0 12px;
+}
+
+.manual-guide li {
+    margin-bottom: 9px;
+}
+
+.manual-intro {
+    font-size: 16px;
+}
+
+.manual-metric-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin: 14px 0;
+}
+
+.manual-metric-list > div {
+    border: 1px solid rgba(148, 163, 184, .22);
+    border-radius: 12px;
+    padding: 13px 15px;
+    background: rgba(15, 23, 42, .45);
+}
+
+.manual-metric-list strong {
+    color: #7ee7bd;
+}
+
+.manual-metric-list p {
+    margin: 6px 0 0;
+}
+
+@media (max-width: 700px) {
+    .manual-metric-list {
+        grid-template-columns: 1fr;
+    }
+
+    .manual-modal {
+        max-height: 92vh;
+    }
+
+    .manual-guide {
+        font-size: 14px;
+    }
+}

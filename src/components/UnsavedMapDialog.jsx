@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { AlertTriangle, X } from "lucide-react";
+import {useEffect, useRef} from "react";
+import {AlertTriangle, X} from "lucide-react";
 
 import "./css/UnsavedMapDialog.css";
 
@@ -52,11 +52,11 @@ export default function UnsavedMapDialog({
                     onClick={onCancel}
                     aria-label="Cerrar"
                 >
-                    <X size={18} />
+                    <X size={18}/>
                 </button>
 
                 <div className="unsaved-map-icon">
-                    <AlertTriangle size={30} strokeWidth={1.8} />
+                    <AlertTriangle size={30} strokeWidth={1.8}/>
                 </div>
 
                 <h2 id="unsaved-map-title">

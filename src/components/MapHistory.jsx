@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Clock3, ChevronDown, Eye, Trash2, CheckCircle2 } from "lucide-react";
+import {useEffect, useRef, useState} from "react";
+import {Clock3, ChevronDown, Eye, Trash2, CheckCircle2} from "lucide-react";
 import "./css/MapHistory.css";
 
 /** Menú compacto superpuesto a la esquina superior derecha del explorador. */
@@ -41,13 +41,14 @@ export default function MapHistory({
                 aria-controls="map-history-menu"
                 title="Consultar historial temporal de mapas"
             >
-                <Clock3 size={14} />
+                <Clock3 size={14}/>
                 <span>Historial {maps.length}/5</span>
-                <ChevronDown size={13} className={open ? "map-history-chevron-up" : ""} />
+                <ChevronDown size={13} className={open ? "map-history-chevron-up" : ""}/>
             </button>
 
             {open && (
-                <div className="map-history-popover" id="map-history-menu" role="region" aria-label="Historial de generación">
+                <div className="map-history-popover" id="map-history-menu" role="region"
+                     aria-label="Historial de generación">
                     <div className="map-history-popover-heading">
                         <strong>Mapas recientes</strong>
                         <span>Solo durante esta sesión</span>
@@ -69,14 +70,15 @@ export default function MapHistory({
                                     >
                                         <span className="map-history-row-title">
                                             <strong>{item.config.mapType}</strong>
-                                            {item.isSaved && <CheckCircle2 size={13} aria-label="Guardado" />}
+                                            {item.isSaved && <CheckCircle2 size={13} aria-label="Guardado"/>}
                                         </span>
-                                        <small>Semilla {item.config.seed} · {item.config.width}×{item.config.height} · Calidad {item.quality}%</small>
+                                        <small>Semilla {item.config.seed} · {item.config.width}×{item.config.height} ·
+                                            Calidad {item.quality}%</small>
                                     </button>
                                     {active ? (
                                         <span className="map-history-active-tag">Actual</span>
                                     ) : (
-                                        <Eye size={14} className="map-history-eye" aria-hidden="true" />
+                                        <Eye size={14} className="map-history-eye" aria-hidden="true"/>
                                     )}
                                     <button
                                         type="button"
@@ -86,7 +88,7 @@ export default function MapHistory({
                                         title="Quitar del historial (no elimina de Supabase)"
                                         aria-label={`Quitar ${item.config.mapType}, semilla ${item.config.seed}, del historial`}
                                     >
-                                        <Trash2 size={14} />
+                                        <Trash2 size={14}/>
                                     </button>
                                 </div>
                             );

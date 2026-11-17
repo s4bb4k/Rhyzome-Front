@@ -5,7 +5,7 @@ export default function MapLoader() {
         <div className="rhyzome-loader" role="status" aria-live="polite">
             <div className="rhyzome-loader-content">
                 <div className="rhyzome-loader-animation">
-                    <div className="rhyzome-loader-ring" />
+                    <div className="rhyzome-loader-ring"/>
                     <div className="rhyzome-loader-core">
                         <span>R</span>
                     </div>
@@ -18,9 +18,9 @@ export default function MapLoader() {
                 </p>
 
                 <div className="rhyzome-loader-dots" aria-hidden="true">
-                    <span />
-                    <span />
-                    <span />
+                    <span/>
+                    <span/>
+                    <span/>
                 </div>
 
                 <div className="rhyzome-loader-info">
